@@ -1,0 +1,108 @@
+{
+  "name": "guardrails-development",
+  "version": "0.1.0",
+  "description": "Development standards: look before building, test what changed, pass the repo's checks, keep the rules in view.",
+  "author": {
+    "name": "scaso01",
+    "url": "https://github.com/scaso01"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "searchBeforeBuild": {
+      "type": "boolean",
+      "title": "search-before-build",
+      "description": "Hold a new code file of 10+ lines (or an edit adding 60+) until the session shows research into whether it already exists.",
+      "default": true
+    },
+    "researchTools": {
+      "type": "string",
+      "title": "search-before-build: what counts as research",
+      "description": "Comma-separated tool names. 'Agent:Explore' names an agent type, 'Skill:*search*' a skill; '*' is a wildcard. Empty uses web search and fetch, research agents, and search skills or MCP tools.",
+      "default": ""
+    },
+    "searchSkipPaths": {
+      "type": "string",
+      "title": "search-before-build: paths to skip",
+      "description": "Comma-separated path fragments where throwaway code is fine. Empty uses /tmp/, /temp/, /scratchpad/.",
+      "default": ""
+    },
+    "searchWarnOnly": {
+      "type": "boolean",
+      "title": "search-before-build: warn only",
+      "description": "Let the write through and add a warning instead of refusing it.",
+      "default": false
+    },
+    "testReminder": {
+      "type": "boolean",
+      "title": "test-reminder",
+      "description": "After a source file changes, name the test that covers it, once per file per session.",
+      "default": true
+    },
+    "precommitCheck": {
+      "type": "boolean",
+      "title": "precommit-check",
+      "description": "Before a git commit, run the checks the repo lists; refuse the commit if one fails.",
+      "default": true
+    },
+    "precommitFile": {
+      "type": "string",
+      "title": "precommit-check: checks file",
+      "description": "Relative to each repo's root. One shell command per line; '#' starts a comment. Repos without it are not checked.",
+      "default": ".claude/precommit"
+    },
+    "precommitTimeoutSeconds": {
+      "type": "number",
+      "title": "precommit-check: timeout per check (seconds)",
+      "description": "A check still running after this counts as failed. At most 600.",
+      "default": 120
+    },
+    "blockNoVerify": {
+      "type": "boolean",
+      "title": "precommit-check: refuse --no-verify",
+      "description": "A commit that skips the repo's own hooks needs your one-time approval code.",
+      "default": true
+    },
+    "rulesPersist": {
+      "type": "boolean",
+      "title": "rules-persist",
+      "description": "Re-add your core rules after a compaction, resume, clear or model switch, and give every subagent its own rules.",
+      "default": true
+    },
+    "rulesFile": {
+      "type": "string",
+      "title": "rules-persist: core rules file",
+      "description": "Markdown file of the rules that must survive. '~' is your home folder. Empty turns this part off.",
+      "default": ""
+    },
+    "subagentRulesFile": {
+      "type": "string",
+      "title": "rules-persist: subagent rules file",
+      "description": "Markdown file added to every subagent's start. Empty turns this part off.",
+      "default": ""
+    },
+    "memoryProvenance": {
+      "type": "boolean",
+      "title": "memory-provenance",
+      "description": "When a new memory file is written without a source and a date, ask for both.",
+      "default": true
+    },
+    "memoryPaths": {
+      "type": "string",
+      "title": "memory-provenance: memory folders",
+      "description": "Comma-separated path fragments that mark a memory file. Empty uses /memory/.",
+      "default": ""
+    },
+    "approvalMinutes": {
+      "type": "number",
+      "title": "Approval window (minutes)",
+      "description": "How long an approval code stays valid after you type it.",
+      "default": 15
+    },
+    "heartbeatDir": {
+      "type": "string",
+      "title": "Heartbeat folder",
+      "description": "Each pack writes <pack>.txt here at session start, read by /guardrails-status and the outside watchdog. '~' is your home folder. Empty turns it off.",
+      "default": "~/.claude/guardrails/heartbeats"
+    }
+  }
+}

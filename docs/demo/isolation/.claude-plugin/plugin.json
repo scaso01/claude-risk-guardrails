@@ -1,0 +1,5 @@
+{
+  "name": "demo-isolation",
+  "version": "0.1.0",
+  "description": "Demo runs only: keep the person's own instruction files and email out of the session, so screenshots show the guardrails and nothing personal."
+}

@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  packs:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g @anthropic-ai/claude-code@2.1.295
+      - name: Shared helpers are in sync
+        shell: bash
+        run: |
+          bash scripts/sync-shared.sh
+          git diff --exit-code -- packs
+      - name: Validate and test every pack
+        shell: bash
+        run: |
+          for pack in packs/*/; do
+            echo "::group::$pack"
+            claude plugin validate "$pack"
+            claude plugin test "$pack"
+            echo "::endgroup::"
+          done
+
+  evidence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Secret and backup-file patterns pass their self-test
+        run: python evidence/tight.py selftest
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

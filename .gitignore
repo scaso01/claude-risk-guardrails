@@ -1,0 +1,4 @@
+# Written by Claude Code at every load; never edit or commit.
+packs/*/.claude-plugin/types/
+__pycache__/
+docs/demo/runs/

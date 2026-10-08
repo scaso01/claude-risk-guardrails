@@ -1,0 +1,30 @@
+{
+  "name": "guardrails-challenge",
+  "version": "0.1.0",
+  "description": "Effective challenge: hold answers to evidence under pushback, and check agents' commit claims against git.",
+  "author": {
+    "name": "scaso01",
+    "url": "https://github.com/scaso01"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "pushbackCheck": {
+      "type": "boolean",
+      "title": "pushback-check",
+      "description": "When you challenge an answer, tell the model to re-check the source and hold or change its answer on evidence, not pressure.",
+      "default": true
+    },
+    "commitClaimAudit": {
+      "type": "boolean",
+      "title": "commit-claim-audit",
+      "description": "When a subagent's report names a commit, place the real git show --stat next to it.",
+      "default": true
+    },
+    "heartbeatDir": {
+      "type": "string",
+      "title": "Heartbeat folder",
+      "description": "Each pack writes <pack>.txt here at session start, read by /guardrails-status and the outside watchdog. '~' is your home folder. Empty turns it off.",
+      "default": "~/.claude/guardrails/heartbeats"
+    }
+  }
+}

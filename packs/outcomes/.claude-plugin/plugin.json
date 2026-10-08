@@ -1,0 +1,36 @@
+{
+  "name": "guardrails-outcomes",
+  "version": "0.1.0",
+  "description": "Outcomes analysis: check what a reply claims against what the evidence supports.",
+  "author": {
+    "name": "scaso01",
+    "url": "https://github.com/scaso01"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "sourceFidelity": {
+      "type": "boolean",
+      "title": "source-fidelity",
+      "description": "When you paste a document, send back a reply that adds figures (amounts, dates, percentages) the document never stated and no tool returned.",
+      "default": true
+    },
+    "pasteMinChars": {
+      "type": "number",
+      "title": "source-fidelity: paste size",
+      "description": "A prompt this long (characters) counts as a pasted document even without paste markers.",
+      "default": 1500
+    },
+    "inventoryGate": {
+      "type": "boolean",
+      "title": "inventory-gate",
+      "description": "Send back a reply that claims it checked 'everything' without saying how many items, out of how many.",
+      "default": true
+    },
+    "heartbeatDir": {
+      "type": "string",
+      "title": "Heartbeat folder",
+      "description": "Each pack writes <pack>.txt here at session start, read by /guardrails-status and the outside watchdog. '~' is your home folder. Empty turns it off.",
+      "default": "~/.claude/guardrails/heartbeats"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "claude-risk-guardrails",
+  "owner": {
+    "name": "scaso01"
+  },
+  "plugins": [
+    {
+      "name": "guardrails-approval",
+      "source": "./packs/approval",
+      "description": "A human signs off before anything that can't be undone: publishing, killing protected processes, editing secrets."
+    },
+    {
+      "name": "guardrails-records",
+      "source": "./packs/records",
+      "description": "Leave a trail a reviewer can follow: commit before 'done', date stale docs, snapshot databases, log every turn."
+    },
+    {
+      "name": "guardrails-monitoring",
+      "source": "./packs/monitoring",
+      "description": "Keep watching after approval: hold agent reports for one review, check replies against a policy, date stale figures, watch the controls."
+    },
+    {
+      "name": "guardrails-development",
+      "source": "./packs/development",
+      "description": "Development standards: look before building, test what changed, pass the repo's checks, keep the rules in view."
+    },
+    {
+      "name": "guardrails-outcomes",
+      "source": "./packs/outcomes",
+      "description": "Outcomes analysis: check what a reply claims against what the evidence supports."
+    },
+    {
+      "name": "guardrails-challenge",
+      "source": "./packs/challenge",
+      "description": "Effective challenge: hold answers to evidence under pushback, and check agents' commit claims against git."
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "name": "guardrails-monitoring",
+  "version": "0.1.0",
+  "description": "Ongoing monitoring: keep watching the agent after approval, and watch the controls themselves.",
+  "author": {
+    "name": "scaso01",
+    "url": "https://github.com/scaso01"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "agentHold": {
+      "type": "boolean",
+      "title": "agent-hold",
+      "description": "While background agents run, hold each report; when the last finishes, deliver all reports together in one message.",
+      "default": true
+    },
+    "agentNameStrip": {
+      "type": "boolean",
+      "title": "agent-hold: drop agent names",
+      "description": "Drop the name from an agent launch unless it must message others, because a named agent's report bypasses the hold.",
+      "default": true
+    },
+    "agentHoldDir": {
+      "type": "string",
+      "title": "agent-hold: state folder",
+      "description": "Per-session hold state and the monthly event log. '~' is your home folder.",
+      "default": "~/.claude/guardrails/agent-hold"
+    },
+    "agentHoldTtlMinutes": {
+      "type": "number",
+      "title": "agent-hold: give up after (minutes)",
+      "description": "An agent with no report after this long is dropped from the hold.",
+      "default": 120
+    },
+    "agentHoldGraceSeconds": {
+      "type": "number",
+      "title": "agent-hold: grace (seconds)",
+      "description": "After an agent finishes, how long to wait for its report before your next prompt releases the hold with a warning.",
+      "default": 60
+    },
+    "agentHoldBlock": {
+      "type": "boolean",
+      "title": "agent-hold: block reports",
+      "description": "Block held reports outright instead of answering them with one line. Claude Code then prints each blocked report in grey.",
+      "default": false
+    },
+    "replyPolicy": {
+      "type": "boolean",
+      "title": "reply-policy",
+      "description": "Check each final reply against a written policy and rewrite it with a second model when it breaks the rules. Warnings are kept word for word; /full-reply shows the original. Costs one extra model call per rewritten reply.",
+      "default": false
+    },
+    "replyPolicyFile": {
+      "type": "string",
+      "title": "reply-policy: policy file",
+      "description": "Your policy file. Empty uses the bundled policies/terse.md. See docs/CONTROLS.md for the phrases it must contain.",
+      "default": ""
+    },
+    "replyPolicyModel": {
+      "type": "string",
+      "title": "reply-policy: rewrite model",
+      "description": "The model that rewrites a reply.",
+      "default": "sonnet"
+    },
+    "replyPolicyLogDir": {
+      "type": "string",
+      "title": "reply-policy: log folder",
+      "description": "One JSON file per reply that broke the policy, for measuring violation rates. Empty turns logging off.",
+      "default": "~/.claude/guardrails/reply-policy"
+    },
+    "staleNumberFlag": {
+      "type": "boolean",
+      "title": "stale-number-flag",
+      "description": "When a figure is saved to notes without a date, ask for the date it was checked.",
+      "default": true
+    },
+    "notesPaths": {
+      "type": "string",
+      "title": "stale-number-flag: notes paths",
+      "description": "Comma-separated path fragments that mark a notes file (Markdown or text).",
+      "default": "/memory/, /notes/"
+    },
+    "controlsWatchdog": {
+      "type": "boolean",
+      "title": "controls-watchdog",
+      "description": "Add /guardrails-status, showing when each pack last loaded. Pair it with watchdog/controls-watchdog.mjs as a session-start hook, which runs outside the mod engine.",
+      "default": true
+    },
+    "heartbeatDir": {
+      "type": "string",
+      "title": "Heartbeat folder",
+      "description": "Each pack writes <pack>.txt here at session start, read by /guardrails-status and the outside watchdog. '~' is your home folder. Empty turns it off.",
+      "default": "~/.claude/guardrails/heartbeats"
+    }
+  }
+}

@@ -1,0 +1,96 @@
+{
+  "name": "guardrails-records",
+  "version": "0.1.0",
+  "description": "Documentation: leave a trail a reviewer can follow, and keep what can't be rebuilt.",
+  "author": {
+    "name": "scaso01",
+    "url": "https://github.com/scaso01"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "cleanTreeOnDone": {
+      "type": "boolean",
+      "title": "clean-tree-on-done",
+      "description": "When a reply says the work is finished but files edited this session are uncommitted, send it back to commit them or say so plainly.",
+      "default": true
+    },
+    "docAgeStamp": {
+      "type": "boolean",
+      "title": "doc-age-stamp",
+      "description": "When a handoff, status or plan doc is read, add how old it is and how many commits have landed since.",
+      "default": true
+    },
+    "docPatterns": {
+      "type": "string",
+      "title": "doc-age-stamp: file names",
+      "description": "Comma-separated file-name patterns to stamp. Empty uses HANDOFF*.md, HANDOFF*.txt, STATUS*.md, TODO*.md, NEXT*.md, PLAN*.md, *handoff*.md, *status*.md.",
+      "default": ""
+    },
+    "neverRevert": {
+      "type": "boolean",
+      "title": "never-revert",
+      "description": "Refuse edits that remove text a repo lists in its never-revert file, until you approve with the one-time code.",
+      "default": true
+    },
+    "neverRevertFile": {
+      "type": "string",
+      "title": "never-revert: file",
+      "description": "The rules file, relative to each repo's root. One rule per line: 'exact text => why it stays'.",
+      "default": ".claude/never-revert.txt"
+    },
+    "dbSnapshot": {
+      "type": "boolean",
+      "title": "db-snapshot",
+      "description": "Back up a SQLite database before a shell command writes to it. If the backup fails, the write waits for your approval.",
+      "default": true
+    },
+    "snapshotDir": {
+      "type": "string",
+      "title": "db-snapshot: folder",
+      "description": "Where snapshots go. '~' is your home folder.",
+      "default": "~/.claude/guardrails/db-snapshots"
+    },
+    "snapshotKeep": {
+      "type": "number",
+      "title": "db-snapshot: copies kept",
+      "description": "Snapshots kept per database; the oldest is overwritten.",
+      "default": 3
+    },
+    "snapshotEveryMinutes": {
+      "type": "number",
+      "title": "db-snapshot: minimum gap (minutes)",
+      "description": "Skip a new snapshot if one of the same database was taken this recently.",
+      "default": 30
+    },
+    "turnLedger": {
+      "type": "boolean",
+      "title": "turn-ledger",
+      "description": "Append one line per turn: what was asked, which tools ran, which files changed.",
+      "default": true
+    },
+    "ledgerDir": {
+      "type": "string",
+      "title": "turn-ledger: folder",
+      "description": "One JSONL file per day goes here. '~' is your home folder.",
+      "default": "~/.claude/guardrails/ledger"
+    },
+    "ledgerPrompts": {
+      "type": "boolean",
+      "title": "turn-ledger: keep prompts",
+      "description": "Record the first 200 characters of each prompt. Off records only tools and files.",
+      "default": true
+    },
+    "approvalMinutes": {
+      "type": "number",
+      "title": "Approval window (minutes)",
+      "description": "How long an approval code stays valid after you type it.",
+      "default": 15
+    },
+    "heartbeatDir": {
+      "type": "string",
+      "title": "Heartbeat folder",
+      "description": "Each pack writes <pack>.txt here at session start, read by /guardrails-status and the outside watchdog. '~' is your home folder. Empty turns it off.",
+      "default": "~/.claude/guardrails/heartbeats"
+    }
+  }
+}

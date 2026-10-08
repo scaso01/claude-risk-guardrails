@@ -1,0 +1,96 @@
+{
+  "name": "guardrails-approval",
+  "version": "0.1.0",
+  "description": "A human signs off before anything that can't be undone: publishing, killing protected processes, editing secrets or stale copies.",
+  "author": {
+    "name": "scaso01",
+    "url": "https://github.com/scaso01"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "sensitiveFileGuard": {
+      "type": "boolean",
+      "title": "sensitive-file-guard",
+      "description": "Refuse edits to credentials, keys, .env files, .git internals and Claude Code's own settings file.",
+      "default": true
+    },
+    "publishGate": {
+      "type": "boolean",
+      "title": "publish-gate",
+      "description": "Refuse making a GitHub repo public until you approve it with the one-time code the refusal shows.",
+      "default": true
+    },
+    "publishGatePushes": {
+      "type": "boolean",
+      "title": "publish-gate: pushes to public repos",
+      "description": "Also hold git push to a public GitHub repo for your approval.",
+      "default": true
+    },
+    "protectedProcess": {
+      "type": "boolean",
+      "title": "protected-process",
+      "description": "Refuse killing or stopping the processes listed below outside their approved route.",
+      "default": true
+    },
+    "protectedProcesses": {
+      "type": "string",
+      "title": "protected-process: list",
+      "description": "Semicolon-separated entries, each 'name' or 'name => approved route', e.g. 'postgres => systemctl restart postgresql; llama-server'.",
+      "default": ""
+    },
+    "messageRedact": {
+      "type": "boolean",
+      "title": "message-redact",
+      "description": "Replace credentials with [REDACTED] in messages sent to other agents or sessions.",
+      "default": true
+    },
+    "messageTools": {
+      "type": "string",
+      "title": "message-redact: message tools",
+      "description": "Comma-separated tool names that send messages; '*' is a wildcard. Empty uses SendMessage and any MCP send_message tool.",
+      "default": ""
+    },
+    "backupFileGuard": {
+      "type": "boolean",
+      "title": "backup-file-guard",
+      "description": "Refuse edits to backup copies (.bak, .orig, x~, 'Copy of x') and name the live file instead.",
+      "default": true
+    },
+    "headroomCheck": {
+      "type": "boolean",
+      "title": "headroom-check",
+      "description": "Hold a build or install when the drive it runs on is nearly full.",
+      "default": true
+    },
+    "minFreeGB": {
+      "type": "number",
+      "title": "headroom-check: free space floor (GB)",
+      "description": "Builds and installs below this much free space wait for your approval code.",
+      "default": 10
+    },
+    "staleCopyBand": {
+      "type": "boolean",
+      "title": "stale-copy-band",
+      "description": "Refuse edits inside a copy of a project marked as old, and point to the live copy.",
+      "default": true
+    },
+    "staleCopyMarker": {
+      "type": "string",
+      "title": "stale-copy-band: marker file",
+      "description": "Relative to the old copy's root. First line: the live copy's path. Following lines: why.",
+      "default": ".claude/stale-copy.txt"
+    },
+    "approvalMinutes": {
+      "type": "number",
+      "title": "Approval window (minutes)",
+      "description": "How long an approval code stays valid after you type it.",
+      "default": 15
+    },
+    "heartbeatDir": {
+      "type": "string",
+      "title": "Heartbeat folder",
+      "description": "Each pack writes <pack>.txt here at session start, read by /guardrails-status and the outside watchdog. '~' is your home folder. Empty turns it off.",
+      "default": "~/.claude/guardrails/heartbeats"
+    }
+  }
+}
