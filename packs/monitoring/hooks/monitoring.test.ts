@@ -136,7 +136,8 @@ test('agent-hold keeps state on disk across events and writes the release flag',
   mock.env(on, { USERPROFILE: 'C:\\Users\\t' })
   mock.clock(on, { now: Date.UTC(2026, 9, 8, 12) })
   const files: Record<string, string> = {}
-  const k = (p: string) => p.replace(/\\/g, '/')
+  // On Linux the engine treats `C:/x` as relative and prefixes the working folder.
+  const k = (p: string) => p.replace(/\\/g, '/').replace(/^.*?(?=[A-Za-z]:\/)/, '')
   on('fs.read', (_$: any, e: any) => { if (files[k(e.path)] !== undefined) return { value: files[k(e.path)]! }; throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }) })
   on('fs.write', (_$: any, e: any) => { files[k(e.path)] = e.text; return { value: undefined } })
   on('fs.exists', (_$: any, e: any) => ({ value: files[k(e.path)] !== undefined }))
