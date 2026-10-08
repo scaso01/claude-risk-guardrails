@@ -243,7 +243,7 @@ test('stale-copy-band reads the marker', () => {
 
 test('stale-copy-band refuses edits under a marked copy and passes others', async ($, on) => {
   const { reached } = world(on, undefined, undefined, false)
-  on('fs.exists', (_$: any, e: any) => ({ value: e.path.replace(/\\/g, '/') === 'C:/old/app/.claude/stale-copy.txt' }))
+  on('fs.exists', (_$: any, e: any) => ({ value: e.path.replace(/\\/g, '/').endsWith('C:/old/app/.claude/stale-copy.txt') }))
   on('fs.read', () => ({ value: 'C:/live/app\nkept for reference only' }))
   const r: any = await $.tool.call({ tool: 'Write', file_path: 'C:\\old\\app\\src\\main.py', content: 'x' } as any)
   expect(denyText(r)).toContain('C:/old/app is marked as an old copy. Why: kept for reference only. The live copy is C:/live/app')
@@ -256,7 +256,7 @@ test('stale-copy-band refuses edits under a marked copy and passes others', asyn
 test('stale-copy-band also catches a shell edit under a marked copy', async ($, on) => {
   const { reached } = world(on, undefined, undefined, false)
   on('session.cwd', () => ({ value: 'C:\\old' }))
-  on('fs.exists', (_$: any, e: any) => ({ value: e.path.replace(/\\/g, '/') === 'C:/old/app/.claude/stale-copy.txt' }))
+  on('fs.exists', (_$: any, e: any) => ({ value: e.path.replace(/\\/g, '/').endsWith('C:/old/app/.claude/stale-copy.txt') }))
   on('fs.read', () => ({ value: 'C:/live/app' }))
   const r: any = await $.tool.call({ tool: 'Bash', command: "sed -i 's/^MAX = 3$/MAX = 5/' app/src/retry.py" } as any)
   expect(denyText(r)).toContain('[stale-copy-band] Refused: C:/old/app is marked as an old copy')
