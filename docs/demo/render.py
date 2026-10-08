@@ -224,6 +224,48 @@ def overview(social: bool) -> str:
                 f'<div class="grid">{packs}</div></div>', OVERVIEW_CSS + size)
 
 
+SOCIAL_CSS = """
+body { margin:0; }
+.sp { width:1280px; height:640px; box-sizing:border-box; padding:56px 60px; display:flex; gap:48px; align-items:center;
+      background:radial-gradient(900px 520px at 88% 30%, rgba(232,122,84,.16), transparent 60%), #0b0f14;
+      font-family:Inter,'Segoe UI',sans-serif; color:var(--fg); }
+.l { flex:1.05; }
+.kick { color:var(--accent); font-weight:700; font-size:17px; letter-spacing:2.4px; text-transform:uppercase; }
+.sp h1 { font-size:58px; line-height:1.06; font-weight:800; letter-spacing:-1.4px; margin:18px 0 20px; }
+.sp h1 span { color:var(--accent); }
+.sp p { font-size:23px; line-height:1.4; color:#aab4c0; margin:0 0 30px; }
+.chips span { display:inline-block; font-size:17px; padding:8px 15px; margin:0 8px 8px 0; border-radius:999px;
+              border:1px solid #2a3340; background:#121821; color:#d6dde6; }
+.repo { margin-top:26px; font-family:'JetBrains Mono',Consolas,monospace; font-size:17px; color:#7d8896; }
+.r { flex:.95; background:#10161e; border:1px solid #232c38; border-radius:16px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5); }
+.r .bar { padding:14px 18px; border-bottom:1px solid #1f2731; }
+.r .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:7px; }
+.r .in { padding:22px 24px 26px; font-family:'JetBrains Mono',Consolas,monospace; font-size:18px; line-height:1.5; }
+.r .u { color:#e6edf3; } .r .u b { color:var(--accent); }
+.r .t { color:#9aa5b1; margin:14px 0; } .r .t b { color:#7ee787; font-weight:400; }
+.r .x { border:1px solid #6e2b2b; background:#2a1416; border-radius:10px; padding:14px 16px; color:#f0d0d0; }
+.r .x .h { color:#ff7b72; font-size:14px; letter-spacing:1.5px; margin-bottom:6px; }
+.r .x code { color:#ffb4a8; font-family:inherit; }
+"""
+
+
+def social() -> str:
+    return page(
+        '<div class="sp"><div class="l">'
+        '<div class="kick">Model risk management for AI agents</div>'
+        '<h1>Govern Claude Code like a <span>vendor model.</span></h1>'
+        '<p>25 guardrails that block, verify and record, mapped to SR 26-2 (by analogy) and NIST AI RMF.</p>'
+        '<div class="chips"><span>6 packs</span><span>Human sign-off</span><span>Live-tested</span><span>MIT</span></div>'
+        '<div class="repo">github.com/scaso01/claude-risk-guardrails</div></div>'
+        '<div class="r"><div class="bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span>'
+        '<span class="dot" style="background:#28c840"></span></div><div class="in">'
+        '<div class="u"><b>&gt;</b> Make our repo public</div>'
+        '<div class="t"><b>&#9679;</b> Bash(gh repo edit --visibility public)</div>'
+        '<div class="x"><div class="h">GUARDRAIL REFUSED</div>[publish-gate] This makes a repository public. '
+        'A human must sign off: they type <code>approve G-7445</code> themselves.</div>'
+        '</div></div></div>', SOCIAL_CSS)
+
+
 def main(names: list[str]) -> int:
     IMAGES.mkdir(parents=True, exist_ok=True)
     runs = [json.loads(p.read_text(encoding='utf-8')) for p in sorted(RUNS.glob('*.json'))]
@@ -241,9 +283,9 @@ def main(names: list[str]) -> int:
         if not names:
             pg.set_content(overview(False))
             pg.locator('.ov').screenshot(path=str(IMAGES / 'overview.png'))
-            sp = browser.new_page(device_scale_factor=1, viewport={'width': 1280, 'height': 640})
-            sp.set_content(overview(True))
-            sp.locator('.ov').screenshot(path=str(IMAGES / 'social-preview.png'))
+            sp = browser.new_page(device_scale_factor=2, viewport={'width': 1280, 'height': 640})
+            sp.set_content(social())
+            sp.locator('.sp').screenshot(path=str(IMAGES / 'social-preview.png'))
             print('wrote overview.png, social-preview.png')
         browser.close()
     return 0
