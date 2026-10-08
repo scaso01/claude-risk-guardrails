@@ -11,7 +11,8 @@ function world(on: any, opts: { proc?: Proc; files?: Record<string, string>; dir
   mock.env(on, { USERPROFILE: 'C:\\Users\\t', OS: 'Windows_NT' })
   mock.clock(on, { now: Date.UTC(2026, 9, 8, 12) })
   const files = opts.files ?? {}
-  const key = (p: string) => p.replace(/\\/g, '/')
+  // On Linux the engine treats `C:/x` as relative and prefixes the working folder.
+  const key = (p: string) => p.replace(/\\/g, '/').replace(/^.*?(?=[A-Za-z]:\/)/, '')
   const reached: any[] = []
   const runs: { argv: string[]; init?: any }[] = []
   on('session.cwd', () => ({ value: 'C:/proj' }))

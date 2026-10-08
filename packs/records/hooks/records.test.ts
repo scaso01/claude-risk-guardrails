@@ -13,7 +13,8 @@ function world(on: any, proc: Proc = () => ({ exitCode: 1, stdout: '' }), files:
   const reached: any[] = []
   const runs: string[][] = []
   const writes: Record<string, string> = {}
-  const key = (p: string) => p.replace(/\\/g, '/')
+  // On Linux the engine treats `C:/x` as relative and prefixes the working folder.
+  const key = (p: string) => p.replace(/\\/g, '/').replace(/^.*?(?=[A-Za-z]:\/)/, '')
   on('session.cwd', () => ({ value: 'C:\\proj' }))
   on('session.id', () => ({ value: 'sess-1' }))
   on('process.run', (_$: any, e: any) => { runs.push(e.argv); return { value: { ...proc(e.argv), stderr: '' } } })

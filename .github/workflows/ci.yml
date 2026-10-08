@@ -26,12 +26,14 @@ jobs:
       - name: Validate and test every pack
         shell: bash
         run: |
+          failed=0
           for pack in packs/*/; do
             echo "::group::$pack"
-            claude plugin validate "$pack"
-            claude plugin test "$pack"
+            claude plugin validate "$pack" || failed=1
+            claude plugin test "$pack" || failed=1
             echo "::endgroup::"
           done
+          exit $failed
 
   evidence:
     runs-on: ubuntu-latest
