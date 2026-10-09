@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, protectedUnits, keepProtected, userText } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, protectedUnits, keepProtected, stripFiller, userText } from './policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -45,6 +45,15 @@ test('flags long, filler-laden, lead-in replies and passes a clean one', () => {
   expect(violations(Array(130).fill('word').join(' '), r)[0]).toBe('130 words (cap 120, code excluded)')
   expect(violations('Added the cap.', r)).toEqual([])
   expect(countWords('Run `git status --short` now.')).toBe(3)
+})
+
+test('single filler words are deleted in place; phrases and code are left for the rewrite', () => {
+  expect(stripFiller("I haven't confirmed that 11 mods actually fire.", r.banned)).toBe("I haven't confirmed that 11 mods fire.")
+  expect(stripFiller("Actually, the fix is in. It's really simple.", r.banned)).toBe("The fix is in. It's simple.")
+  expect(stripFiller('- just restart it\n- run `just build` now', r.banned)).toBe('- restart it\n- run `just build` now')
+  expect(stripFiller('```\nreally keep\n```\nBasically done.', r.banned)).toBe('```\nreally keep\n```\nDone.')
+  expect(stripFiller('Use it in order to pass.', r.banned)).toBe('Use it in order to pass.')
+  expect(violations(stripFiller('This is very clear.', r.banned), r)).toEqual([])
 })
 
 test('confusion mode demands one paragraph and a closing question, no bullets', () => {
