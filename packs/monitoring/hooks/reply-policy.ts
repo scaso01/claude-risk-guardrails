@@ -31,8 +31,9 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
   on('turn.step', async function* ($, e, next) {
     const s = next(e)
     if (e.agentId) return yield* s
-    const human = (await $.session.surfaces()).length > 0 ||
-      (await $.env.get('CLAUDE_CODE_ENTRYPOINT')) === 'claude-desktop' ||
+    const entry = await $.env.get('CLAUDE_CODE_ENTRYPOINT')
+    const human = entry === 'cli' || entry === 'claude-desktop' ||
+      (await $.session.surfaces()).length > 0 ||
       (await (fromPhone ??= launchedByRemoteControl($).catch(() => false)))
     if (!human) return yield* s
     const buf: any[] = []
