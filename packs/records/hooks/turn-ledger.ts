@@ -13,13 +13,28 @@ export type LedgerRow = {
 
 export const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
 
-export function ledgerFile(dir: string, at: Date): string {
-  return `${dir.replace(/[\\/]+$/, '')}/${at.toISOString().slice(0, 10)}.jsonl`
+// The file API has no append and no cross-process lock: a write replaces the whole file,
+// so two writers sharing one file lose whichever row lands second. Each process writes its
+// own file per day instead (session id + a random tag drawn at load, so a session resumed
+// in a second process still gets a file of its own), and its turns run one at a time.
+export const ROLL_AT = 3 * 1024 * 1024 // reads and writes reject over 4 MiB
+
+const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/i
+
+export function ledgerFile(dir: string, at: Date, session: string, writer: string, part = 0): string {
+  let name = session.replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 120) || 'unknown'
+  if (RESERVED.test(name)) name = `_${name}`
+  const suffix = part ? `.${part}` : ''
+  return `${dir.replace(/[\\/]+$/, '')}/${at.toISOString().slice(0, 10)}/${name}.${writer}${suffix}.jsonl`
 }
 
-export function turnLedger(on: On, edits: EditLog, dir: string, keepPrompts: boolean) {
+export const writerTag = (random: () => number = Math.random) =>
+  Math.floor(random() * 36 ** 6).toString(36).padStart(6, '0')
+
+export function turnLedger(on: On, edits: EditLog, dir: string, keepPrompts: boolean, writer = writerTag()) {
   let asked = ''
   let tools: Record<string, number> = {}
+  let part = 0
 
   on('turn.start', async ($, e, next) => {
     asked = keepPrompts ? clip(String(e.text ?? '').replace(/\s+/g, ' ').trim(), 200) : ''
@@ -38,13 +53,21 @@ export function turnLedger(on: On, edits: EditLog, dir: string, keepPrompts: boo
     if (e.agentId) return r
     const now = new Date(await $.clock.now())
     const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
-    const path = ledgerFile(dir.replace(/^~(?=[\\/]|$)/, home), now)
+    const root = dir.replace(/^~(?=[\\/]|$)/, home)
+    const session = await $.session.id()
     const row: LedgerRow = {
-      at: now.toISOString(), session: await $.session.id(), turn: e.turnId,
+      at: now.toISOString(), session, turn: e.turnId,
       ended: e.isAborted ? 'aborted' : e.reason, asked, tools, changed: [...edits.turn],
     }
-    const prior: string = await $.fs.read(path).catch(() => '')
-    await $.fs.write(path, prior + JSON.stringify(row) + '\n')
+    const line = JSON.stringify(row) + '\n'
+    let path = ledgerFile(root, now, session, writer, part)
+    let prior: string = await $.fs.read(path).catch(() => '')
+    if (prior.length + line.length > ROLL_AT) {
+      part += 1
+      path = ledgerFile(root, now, session, writer, part)
+      prior = await $.fs.read(path).catch(() => '')
+    }
+    await $.fs.write(path, prior + line)
     return r
   })
 }

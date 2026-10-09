@@ -364,12 +364,12 @@ or Python), then lets the write run. If no backup can be made, the write waits f
 ### turn-ledger
 
 **Stops:** work with no record.
-**Responds:** appends one JSON line per turn: what was asked, which tools ran, which files changed.
+**Responds:** appends one JSON line per turn: what was asked, which tools ran, which files changed. Each Claude process writes its own file, `<ledgerDir>/<YYYY-MM-DD>/<session>.<tag>.jsonl`, so sessions finishing together never overwrite each other's rows; a file nearing the 4 MiB write limit continues in `<session>.<tag>.1.jsonl`. Read a day by reading every file in its folder.
 **Maps to:** SR 26-2 VI Documentation · NIST AI RMF Govern.
 
 | Option | Default | What it does |
 |---|---|---|
-| `ledgerDir` | `~/.claude/guardrails/ledger` | One JSONL file per day. |
+| `ledgerDir` | `~/.claude/guardrails/ledger` | One folder per day, one JSONL file per Claude process inside it. |
 | `ledgerPrompts` | on | Record the first 200 characters of each prompt. Off records only tools and files. |
 
 ![turn-ledger](images/turn-ledger.png)
