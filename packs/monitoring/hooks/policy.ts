@@ -52,6 +52,10 @@ export function countLines(text: string, tableRows = Infinity): number {
 const prose = (t: string) => t.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/g, 'X')
 export const countWords = (t: string) => (prose(t).match(/[A-Za-z0-9][\w'’.-]*/g) ?? []).length
 export const hasList = (t: string) => /^\s*([-*•]|\d+[.)])\s+/m.test(prose(t))
+/** Bullet and numbered items plus table body rows: what a shortened reply must not lose. */
+export const listItems = (t: string) =>
+  (prose(t).match(/^\s*([-*•]|\d+[.)])\s+/gm)?.length ?? 0) +
+  (prose(t).match(/^\s*\|(?!\s*:?-{3,})/gm)?.length ?? 0)
 const hasTable = (t: string) => /^\s*\|/m.test(prose(t))
 const paragraphs = (t: string) => prose(t).split(/\n\s*\n/).filter(p => p.trim()).length
 

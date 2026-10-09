@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, hasList, keepProtected, parseRules, rewritePrompt, stripFiller, userText, violations } from './policy'
+import { countWords, hasList, keepProtected, listItems, parseRules, rewritePrompt, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
 
@@ -52,14 +52,19 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           const stripped = stripFiller(text, rules.banned)
           if (stripped !== text) { draft = stripped; vv = violations(stripped, rules, confused) }
         }
+        const base = draft
+        const items = listItems(text)
         for (let attempt = 0; attempt < 2 && vv.length; attempt++) {
           const rr: any = await $.model.complete({ model: opts.model, prompt: rewritePrompt(rules, lastPrompt, draft, vv, confused) })
           const cand = rr.isAnswered ? rr.text.trim() : ''
           if (!cand) break
           if (!confused && hasList(text) && !hasList(cand)) { vv = [...v, 'the rewrite dropped the list; keep the main points as a list']; continue }
+          if (!confused && listItems(cand) < items) { vv = [...v, `the rewrite dropped list items; keep all ${items} items and their table rows, shorten the prose instead`]; continue }
           draft = cand
           vv = violations(cand, rules, confused)
         }
+        // A list or table always comes through whole: a rewrite that lost items is discarded.
+        if (!confused && listItems(draft) < items) { draft = base; vv = violations(base, rules, confused) }
         let kept = 0
         if (draft !== text && vv.length < v.length) {
           ;({ text: out, kept } = keepProtected(text, draft))

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, protectedUnits, keepProtected, stripFiller, userText } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText } from './policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -108,4 +108,13 @@ test('real problem reports are still caught', () => {
 
 test('talking about failure in general is not a problem report', () => {
   expect(protectedUnits('The three riskiest are the ones whose failure would hurt most.')).toEqual([])
+})
+
+test('listItems counts bullets, numbered items and table rows, not code or separators', () => {
+  expect(listItems('Intro.\n\n- a\n- b\n* c\n1. d\n2) e')).toBe(5)
+  expect(listItems('| # | Mod |\n|---|---|\n| 1 | x |\n| 2 | y |')).toBe(3)
+  expect(listItems('```\n- not a list\n```\nplain')).toBe(0)
+  const seven = Array.from({ length: 7 }, (_, i) => `- item ${i + 1}`).join('\n')
+  const five = Array.from({ length: 5 }, (_, i) => `- item ${i + 1}`).join('\n')
+  expect(listItems(five)).toBeLessThan(listItems(seven))
 })
