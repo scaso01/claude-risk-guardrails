@@ -71,7 +71,16 @@ export function violations(text: string, rules: Rules, confused = false): string
   return v
 }
 
-export const rewritePrompt = (rules: Rules, question: string, draft: string, v: string[], confused: boolean) =>
+// Single filler words are deleted in place; a model rewrite for one word can change the meaning.
+export function stripFiller(text: string, banned: RegExp): string {
+  const re = new RegExp(`${banned.source},?[ \\t]?(\\w)?`, 'gi')
+  return text.split(/(```[\s\S]*?```|`[^`]*`)/).map((part, i) => i % 2 ? part :
+    part.replace(re, (m, w: string, next?: string) => /\s/.test(w) ? m
+      : (next && /[A-Z]/.test(w[0]!) ? next.toUpperCase() : next ?? ''))
+  ).join('')
+}
+
+export const rewritePrompt =(rules: Rules, question: string, draft: string, v: string[], confused: boolean) =>
   `The user's reply policy is defined by this file:
 <policy>
 ${rules.text}

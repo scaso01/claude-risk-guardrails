@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, hasList, keepProtected, parseRules, rewritePrompt, userText, violations } from './policy'
+import { countWords, hasList, keepProtected, parseRules, rewritePrompt, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
 
@@ -48,6 +48,10 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         const confused = rules.confused.test(lastPrompt)
         const v = rules.lift.test(lastPrompt) && !confused ? [] : violations(text, rules, confused)
         let draft = text, vv = v
+        if (v.some(x => x.startsWith('filler:'))) {
+          const stripped = stripFiller(text, rules.banned)
+          if (stripped !== text) { draft = stripped; vv = violations(stripped, rules, confused) }
+        }
         for (let attempt = 0; attempt < 2 && vv.length; attempt++) {
           const rr: any = await $.model.complete({ model: opts.model, prompt: rewritePrompt(rules, lastPrompt, draft, vv, confused) })
           const cand = rr.isAnswered ? rr.text.trim() : ''
