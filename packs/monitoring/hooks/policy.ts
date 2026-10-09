@@ -80,7 +80,7 @@ export function stripFiller(text: string, banned: RegExp): string {
   ).join('')
 }
 
-export const rewritePrompt =(rules: Rules, question: string, draft: string, v: string[], confused: boolean) =>
+export const rewritePrompt = (rules: Rules, question: string, draft: string, v: string[], confused: boolean) =>
   `The user's reply policy is defined by this file:
 <policy>
 ${rules.text}
