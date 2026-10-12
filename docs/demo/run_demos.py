@@ -30,6 +30,18 @@ RUNS = Path(__file__).resolve().parent / 'runs'
 PACKS = ['approval', 'records', 'monitoring', 'development', 'outcomes', 'challenge']
 HOME = Path.home()
 SANDBOXES = HOME / '.gr-demo'
+# A two-call run once hung past 280 s while normal calls take 5-54 s; a slow call keeps its debug log.
+SLOW_CALL_S = 120
+
+
+def keep_slow_log(debug: Path, name: str, i: int) -> Path | None:
+    """Copy a slow call's debug log out of the sandbox before the sandbox is deleted."""
+    if not debug.exists():
+        return None
+    dest = SANDBOXES / 'slow-runs' / f'{name}-{dt.datetime.now():%Y%m%d-%H%M%S}-call{i + 1}.log'
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(debug, dest)
+    return dest
 
 
 @dataclass
@@ -315,13 +327,22 @@ def run(sc: Scenario) -> dict:
         claude = shutil.which('claude') or 'claude'
         session = None
         started = time.time()
-        for prompt in sc.prompts:
+        for i, prompt in enumerate(sc.prompts):
             # The prompt goes in on stdin: a Windows .cmd launcher cuts arguments at the first newline.
+            debug = sandbox / f'debug-{i}.log'
             cmd = [claude, '-p', '--setting-sources', 'project', '--settings', str(sandbox / 'settings.json'),
-                   '--strict-mcp-config', '--permission-mode', 'bypassPermissions', '--output-format', 'json']
+                   '--strict-mcp-config', '--permission-mode', 'bypassPermissions', '--output-format', 'json',
+                   '--debug-file', str(debug)]
             if session:
                 cmd += ['--resume', session]
-            r = subprocess.run(cmd, cwd=sandbox, env=env, capture_output=True, text=True, encoding='utf-8', timeout=420, input=prompt)
+            call_started = time.time()
+            try:
+                r = subprocess.run(cmd, cwd=sandbox, env=env, capture_output=True, text=True, encoding='utf-8', timeout=420, input=prompt)
+            except subprocess.TimeoutExpired:
+                return {'name': sc.name, 'pack': sc.pack, 'fired': False,
+                        'error': f'call {i + 1} timed out after 420 s; debug log kept at {keep_slow_log(debug, sc.name, i)}'}
+            if time.time() - call_started > SLOW_CALL_S:
+                print(f'{sc.name}: call {i + 1} took {round(time.time() - call_started)} s; debug log kept at {keep_slow_log(debug, sc.name, i)}')
             try:
                 session = json.loads(r.stdout).get('session_id') or session
             except json.JSONDecodeError:
