@@ -136,9 +136,12 @@ test('isNotice skips agent reports and harness notices but not pasted text', () 
   expect(isNotice('why is the reply short?')).toBe(false)
 })
 
-test('spaceBullets puts a blank line before each bullet but leaves code and spaced lists alone', () => {
-  expect(spaceBullets('Answer.\n- one\n- two\n1. three')).toBe('Answer.\n\n- one\n\n- two\n\n1. three')
-  expect(spaceBullets('Answer.\n\n- one\n\n- two')).toBe('Answer.\n\n- one\n\n- two')
+test('spaceBullets puts a visible gap between bullets and leaves code and tables alone', () => {
+  const G = '\n\n&nbsp;\n\n'
+  expect(spaceBullets('Answer.\n- one\n- two\n1. three')).toBe(`Answer.\n\n- one${G}- two${G}1. three`)
+  expect(spaceBullets('Answer.\n\n- one\n\n- two')).toBe(`Answer.\n\n- one${G}- two`)
+  expect(spaceBullets(`Answer.\n\n- one${G}- two`)).toBe(`Answer.\n\n- one${G}- two`)
+  expect(spaceBullets('- one\n  more of one\n- two\n\nAfter.\n- three')).toBe(`- one\n  more of one${G}- two\n\nAfter.\n\n- three`)
   expect(spaceBullets('```\n- a\n- b\n```')).toBe('```\n- a\n- b\n```')
   expect(spaceBullets('| a |\n|---|\n| - b |')).toBe('| a |\n|---|\n| - b |')
 })

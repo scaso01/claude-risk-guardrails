@@ -152,10 +152,29 @@ export function keepProtected(original: string, rewrite: string): { text: string
 
 export const userText = (t: string) => t.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
 
-/** A blank line before every bullet or numbered item, outside code blocks, so lists read easily. */
+const ITEM = /^[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S/
+// Terminals render a markdown list tight even with blank lines between items; a paragraph
+// holding only a no-break space survives as a visible gap.
+const GAP = '&nbsp;'
+
+/** A visible gap between list items, outside code blocks, so lists read easily. */
 export function spaceBullets(text: string): string {
-  return text.split(/(```[\s\S]*?```)/).map((part, i) => i % 2 ? part :
-    part.replace(/([^\n])\n(?=[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S)/g, '$1\n\n')).join('')
+  return text.split(/(```[\s\S]*?```)/).map((part, i) => {
+    if (i % 2) return part
+    const out: string[] = []
+    let inItem = false
+    for (const line of part.split('\n')) {
+      if (ITEM.test(line)) {
+        while (out.length && ['', GAP].includes(out[out.length - 1]!.trim())) out.pop()
+        if (out.length) out.push('', ...(inItem ? [GAP, ''] : []))
+        inItem = true
+      } else if (line.trim() !== '' && !/^[ \t]/.test(line) && line.trim() !== GAP) {
+        inItem = false
+      }
+      out.push(line)
+    }
+    return out.join('\n')
+  }).join('')
 }
 
 /** Agent reports and harness notices arrive as prompts but are not the user's question. */
