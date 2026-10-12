@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, hasList, keepProtected, listItems, parseRules, rewritePrompt, stripFiller, userText, violations } from './policy'
+import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, parseRules, rewritePrompt, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
 
@@ -23,7 +23,11 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
   let lastFull = ''
   let fromPhone: Promise<boolean> | undefined
 
-  on('prompt.submit', ($, e, next) => { lastPrompt = userText(e.text); return next(e) })
+  on('prompt.submit', ($, e, next) => {
+    const t = userText(e.text)
+    if (!isNotice(t)) lastPrompt = t
+    return next(e)
+  })
 
   on('command.run', { command: 'full-reply' }, async () =>
     ({ text: lastFull || 'reply-policy has not shortened a reply since it last loaded.' }))
@@ -60,13 +64,15 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           if (!cand) break
           if (!confused && hasList(text) && !hasList(cand)) { vv = [...v, 'the rewrite dropped the list; keep the main points as a list']; continue }
           if (!confused && listItems(cand) < items) { vv = [...v, `the rewrite dropped list items; keep all ${items} items and their table rows, shorten the prose instead`]; continue }
+          const lost = confused ? [] : droppedFacts(text, cand)
+          if (lost.length) { vv = [...v, `the rewrite dropped these facts: ${lost.join(', ')}; put every one back and cut words instead`]; continue }
           draft = cand
           vv = violations(cand, rules, confused)
         }
-        // A list or table always comes through whole: a rewrite that lost items is discarded.
-        if (!confused && listItems(draft) < items) { draft = base; vv = violations(base, rules, confused) }
+        // Substance beats length: a rewrite that lost list items or facts is discarded.
+        if (!confused && (listItems(draft) < items || droppedFacts(text, draft).length)) { draft = base; vv = violations(base, rules, confused) }
         let kept = 0
-        if (draft !== text && vv.length < v.length) {
+        if (draft !== text && (vv.length < v.length || countWords(draft) < countWords(text))) {
           ;({ text: out, kept } = keepProtected(text, draft))
           lastFull = text
           $.ui.status(`reply-policy: ${countWords(text)}→${countWords(out)} words${confused ? ' (confusion)' : ''}` +

@@ -103,9 +103,11 @@ ${question}
   (confused
     ? `The user's message signals confusion, so follow the policy's confusion rule exactly: one plain-English paragraph with no bullets, ` +
       `tables or jargon, explaining the idea in everyday words, then one concrete question on its own line. `
-    : `The answer to the user's question is the part you must keep: open with it, then keep its main points, shortened. ` +
-      `If the draft gives steps or a list, the rewrite keeps a shorter list of the most important ones. `) +
-  `Cut supporting detail, background, side notes and repeated points before you cut any part of the answer. ` +
+    : `Open with the answer to the user's question. Keep every fact in the draft: every number, percentage, ` +
+      `confidence figure, name, date, path, ID, link, code span, list item, table row, option, caveat, ` +
+      `recommendation and question to the user. Shorten by cutting words, never facts: drop filler, repetition, ` +
+      `background, narration of steps taken and restated context; merge sentences and use tighter wording. ` +
+      `If every fact cannot fit the cap, keep every fact and go over the cap. `) +
   `Keep verbatim anything the policy says never to compress. Output only the rewritten reply.
 
 <draft>
@@ -124,7 +126,8 @@ export function protectedUnits(text: string): string[] {
   const units: string[] = []
   for (const m of text.matchAll(FENCE)) if (ERROR_BLOCK.test(m[0])) units.push(m[0])
   for (const line of text.replace(FENCE, '\n').split('\n'))
-    for (const sent of line.replace(/^\s*([-*•]|\d+[.)])\s+/, '').split(/(?<=[.!?])\s+(?=[A-Z`"*])/))
+    if (line.trim().startsWith('|')) { if (PROTECT.test(line)) units.push(line.trim()) }
+    else for (const sent of line.replace(/^\s*([-*•]|\d+[.)])\s+/, '').split(/(?<=[.!?])\s+(?=[A-Z`"*])/))
       if (sent.trim() && PROTECT.test(sent)) units.push(sent.trim())
   return units
 }
@@ -145,3 +148,19 @@ export function keepProtected(original: string, rewrite: string): { text: string
 }
 
 export const userText = (t: string) => t.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
+
+/** Agent reports and harness notices arrive as prompts but are not the user's question. */
+export const isNotice = (t: string) => /^<(?!pasted_content)/.test(t) || /^Mod hot-reloading is off/.test(t)
+
+/** Numbers, links, code and the closing question in `original` that `rewrite` lost. */
+export function droppedFacts(original: string, rewrite: string): string[] {
+  const lost: string[] = []
+  for (const m of original.matchAll(FENCE)) if (!rewrite.includes(m[0].replace(/^```\w*\n?|```$/g, '').trim())) lost.push('a code block')
+  const body = original.replace(FENCE, ' ')
+  const spans = [...body.matchAll(/`([^`]+)`/g)].map(m => m[1]!)
+  const plain = body.replace(/`[^`]*`/g, ' ').replace(/^\s*\d+[.)]\s+/gm, ' ')
+  const tokens = [...plain.matchAll(/https?:\/\/[^\s)>\]]+|\d[\d,.:/-]*\d%?|\d%?/g)].map(m => m[0].replace(/[.,:/-]+$/, ''))
+  for (const f of new Set([...spans, ...tokens])) if (!rewrite.includes(f)) lost.push(f)
+  if (/\?\s*$/.test(original.trim()) && !rewrite.includes('?')) lost.push('the closing question')
+  return lost
+}

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice } from './policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -117,4 +117,21 @@ test('listItems counts bullets, numbered items and table rows, not code or separ
   const seven = Array.from({ length: 7 }, (_, i) => `- item ${i + 1}`).join('\n')
   const five = Array.from({ length: 5 }, (_, i) => `- item ${i + 1}`).join('\n')
   expect(listItems(five)).toBeLessThan(listItems(seven))
+})
+
+test('droppedFacts catches lost confidence figures, numbers, code and the closing question', () => {
+  const before = 'Move the job to 8 AM (85% confident). It runs `brain_review.py` 3 times. Should I move it?'
+  expect(droppedFacts(before, before)).toEqual([])
+  expect(droppedFacts(before, 'Move the job to 8 AM. It runs the script.')).toEqual(['brain_review.py', '85%', '3', 'the closing question'])
+})
+
+test('droppedFacts ignores numbered-list markers and keeps whole figures', () => {
+  expect(droppedFacts('1. Pays up to $240,000.\n2. Applied 2026-08-11.', '- Pays up to $240,000, applied 2026-08-11.')).toEqual([])
+})
+
+test('isNotice skips agent reports and harness notices but not pasted text', () => {
+  expect(isNotice('<task-notification> <task-id>x</task-id>')).toBe(true)
+  expect(isNotice('Mod hot-reloading is off in this session')).toBe(true)
+  expect(isNotice('<pasted_content id="1">hello</pasted_content> fix this')).toBe(false)
+  expect(isNotice('why is the reply short?')).toBe(false)
 })
