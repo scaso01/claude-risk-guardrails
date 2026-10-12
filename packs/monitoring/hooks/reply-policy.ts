@@ -18,6 +18,20 @@ async function expand($: any, p: string): Promise<string> {
   return p.replace(/^~(?=[\\/]|$)/, home)
 }
 
+/** Per-day tally in `<logDir>/counts.json`: replies checked, and drafts over the line or word cap. */
+async function countReply($: any, logDir: string, overCap: boolean): Promise<void> {
+  if (!logDir) return
+  const path = `${await expand($, logDir)}/counts.json`
+  let counts: Record<string, { checked: number; overCap: number }> = {}
+  try { counts = JSON.parse(await $.fs.read(path)) } catch { /* first reply */ }
+  const day = new Date(await $.clock.now()).toISOString().slice(0, 10)
+  const d = counts[day] ?? { checked: 0, overCap: 0 }
+  d.checked++
+  if (overCap) d.overCap++
+  counts[day] = d
+  await $.fs.write(path, JSON.stringify(counts))
+}
+
 export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
   let lastPrompt = ''
   let lastFull = ''
@@ -51,6 +65,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         const rules = parseRules(await $.fs.read(file))
         const confused = rules.confused.test(lastPrompt)
         const v = rules.lift.test(lastPrompt) && !confused ? [] : violations(text, rules, confused)
+        await countReply($, opts.logDir, v.some(x => / \(cap \d+/.test(x))).catch(() => undefined)
         let draft = text, vv = v
         if (v.some(x => x.startsWith('filler:'))) {
           const stripped = stripFiller(text, rules.banned)
