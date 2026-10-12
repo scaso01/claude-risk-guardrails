@@ -135,8 +135,11 @@ export function protectedUnits(text: string): string[] {
 export function survives(unit: string, rewrite: string): boolean {
   if (unit.startsWith('```')) return rewrite.includes(unit.replace(/^```\w*\n?|```$/g, '').trim())
   if (![...unit.matchAll(/`([^`]+)`/g)].every(m => rewrite.includes(m[1]!))) return false
-  if (!PROTECT.test(rewrite)) return false
   const low = rewrite.toLowerCase(), words = sig(unit.replace(/`[^`]*`/g, ' '))
+  // The problem word must survive, but reworded counts: "warning" kept as "warn", "failed" as "fails".
+  const root = ((unit.match(PROTECT)?.[0] ?? '').toLowerCase().match(/[a-z]+/g) ?? [])
+    .sort((a, b) => b.length - a.length)[0]?.slice(0, 4)
+  if (root && !low.includes(root)) return false
   return !words.length || words.filter(w => low.includes(w)).length / words.length >= 0.5
 }
 

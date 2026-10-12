@@ -142,3 +142,10 @@ test('spaceBullets puts a blank line before each bullet but leaves code and spac
   expect(spaceBullets('```\n- a\n- b\n```')).toBe('```\n- a\n- b\n```')
   expect(spaceBullets('| a |\n|---|\n| - b |')).toBe('| a |\n|---|\n| - b |')
 })
+
+test('a warning kept in other words is not appended again', () => {
+  const before = 'Nightly check runs at 4:30. A mod with failing tests turns the pill red, and you get a warning in your next chat.'
+  const after = 'Nightly check runs at 4:30. Failing tests turn the pill red and warn you in your next chat.'
+  expect(keepProtected(before, after)).toEqual({ text: after, kept: 0 })
+  expect(keepProtected(before, 'Nightly check runs at 4:30.').kept).toBe(1)
+})
