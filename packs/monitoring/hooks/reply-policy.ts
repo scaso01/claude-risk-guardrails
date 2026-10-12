@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, parseRules, rewritePrompt, stripFiller, userText, violations } from './policy'
+import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
 
@@ -87,6 +87,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         $.ui.status(`reply-policy off this reply: ${(err as Error).message}`)
       }
     }
+    if (r.toolUses.length === 0 && r.stopReason === 'end_turn') out = spaceBullets(out)
     if (out === text) { for (const c of buf) yield c; return r }
     let done = false
     for (const c of buf) {

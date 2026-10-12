@@ -149,6 +149,12 @@ export function keepProtected(original: string, rewrite: string): { text: string
 
 export const userText = (t: string) => t.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
 
+/** A blank line before every bullet or numbered item, outside code blocks, so lists read easily. */
+export function spaceBullets(text: string): string {
+  return text.split(/(```[\s\S]*?```)/).map((part, i) => i % 2 ? part :
+    part.replace(/([^\n])\n(?=[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S)/g, '$1\n\n')).join('')
+}
+
 /** Agent reports and harness notices arrive as prompts but are not the user's question. */
 export const isNotice = (t: string) => /^<(?!pasted_content)/.test(t) || /^Mod hot-reloading is off/.test(t)
 

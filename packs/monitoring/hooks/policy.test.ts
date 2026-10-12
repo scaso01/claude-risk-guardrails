@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, spaceBullets } from './policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -134,4 +134,11 @@ test('isNotice skips agent reports and harness notices but not pasted text', () 
   expect(isNotice('Mod hot-reloading is off in this session')).toBe(true)
   expect(isNotice('<pasted_content id="1">hello</pasted_content> fix this')).toBe(false)
   expect(isNotice('why is the reply short?')).toBe(false)
+})
+
+test('spaceBullets puts a blank line before each bullet but leaves code and spaced lists alone', () => {
+  expect(spaceBullets('Answer.\n- one\n- two\n1. three')).toBe('Answer.\n\n- one\n\n- two\n\n1. three')
+  expect(spaceBullets('Answer.\n\n- one\n\n- two')).toBe('Answer.\n\n- one\n\n- two')
+  expect(spaceBullets('```\n- a\n- b\n```')).toBe('```\n- a\n- b\n```')
+  expect(spaceBullets('| a |\n|---|\n| - b |')).toBe('| a |\n|---|\n| - b |')
 })
