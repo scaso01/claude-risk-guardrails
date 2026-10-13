@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
+import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, ownWords, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
 
@@ -63,8 +63,9 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
       try {
         const file = opts.policyFile ? await expand($, opts.policyFile) : `${$.plugin.root}/policies/terse.md`
         const rules = parseRules(await $.fs.read(file))
-        const confused = rules.confused.test(lastPrompt)
-        const v = rules.lift.test(lastPrompt) && !confused ? [] : violations(text, rules, confused)
+        const own = ownWords(lastPrompt)
+        const confused = rules.confused.test(own)
+        const v = rules.lift.test(own) && !confused ? [] : violations(text, rules, confused)
         await countReply($, opts.logDir, v.some(x => / \(cap \d+/.test(x))).catch(() => undefined)
         let draft = text, vv = v
         if (v.some(x => x.startsWith('filler:'))) {

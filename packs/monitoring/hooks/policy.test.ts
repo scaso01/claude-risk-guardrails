@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, spaceBullets } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, ownWords, spaceBullets } from './policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -134,6 +134,15 @@ test('isNotice skips agent reports and harness notices but not pasted text', () 
   expect(isNotice('Mod hot-reloading is off in this session')).toBe(true)
   expect(isNotice('<pasted_content id="1">hello</pasted_content> fix this')).toBe(false)
   expect(isNotice('why is the reply short?')).toBe(false)
+})
+
+test('lift and confusion words inside pasted text do not count as the ask', () => {
+  const r = parseRules(MD)
+  const p = '<pasted_content id="b105">On-site Full-time. I\'m lost on this one.</pasted_content id="b105">'
+  expect(ownWords(p)).toBe('')
+  expect(r.lift.test(ownWords(p))).toBe(false)
+  expect(r.confused.test(ownWords(p))).toBe(false)
+  expect(r.lift.test(ownWords(`${p} give me the full picture`))).toBe(true)
 })
 
 test('spaceBullets puts a visible gap between bullets and leaves code and tables alone', () => {

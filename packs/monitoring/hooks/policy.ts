@@ -152,6 +152,9 @@ export function keepProtected(original: string, rewrite: string): { text: string
 
 export const userText = (t: string) => t.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
 
+// Pasted text is not Sean asking: "Full-time" in a pasted job posting must not lift the cap.
+export const ownWords = (t: string) => t.replace(/<pasted_content\b[^>]*>[\s\S]*?<\/pasted_content\b[^>]*>/g, ' ').trim()
+
 const ITEM = /^[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S/
 // Terminals render a markdown list tight even with blank lines between items; a paragraph
 // holding only a no-break space survives as a visible gap.
