@@ -214,6 +214,18 @@ test('backup-file-guard refuses an edit to a .bak and names the live file', asyn
   expect(reached.length).toBe(2)
 })
 
+test('backup-file-guard lets a command make a backup, but not then edit it', async ($, on) => {
+  const { reached } = world(on)
+  on('session.cwd', () => ({ value: 'C:/p' }))
+  await $.tool.call({ tool: 'Bash', command: 'cd data && cp sean-recruiters.xlsx sean-recruiters.bak-20261013.xlsx && python edit.py' } as any)
+  await $.tool.call({ tool: 'PowerShell', command: 'Copy-Item app.py app.py.bak' } as any)
+  expect(reached.length).toBe(2)
+  const r: any = await $.tool.call({ tool: 'Bash', command: "cp app.py app.py.bak && sed -i 's/a/b/' app.py.bak" } as any)
+  expect(denyText(r)).toContain('[backup-file-guard] Refused: app.py.bak')
+  const r2: any = await $.tool.call({ tool: 'Bash', command: 'cp other.py app.py.bak' } as any)
+  expect(denyText(r2)).toContain('[backup-file-guard] Refused')
+})
+
 // ---- headroom-check ----
 
 test('headroom-check knows a build or install when it sees one', () => {

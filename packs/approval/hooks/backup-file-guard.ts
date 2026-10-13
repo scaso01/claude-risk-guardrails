@@ -19,10 +19,22 @@ export function liveFile(path: string): string {
     .replace(/ - copy( \(\d+\))?(\.[^.\\/]+)$/i, '$2')
 }
 
+const COPY = /^\s*(cp|copy|copy-item|cpi|xcopy)\s/i
+
+/** True when every step that names `fp` copies the live file into it, i.e. the command makes a backup. */
+export function onlyMakesBackup(command: string, fp: string): boolean {
+  const live = liveFile(fp).split(/[\\/]/).pop() ?? ''
+  const steps = command.split(/&&|\|\||[;|\n]/).filter(s => s.includes(fp))
+  return steps.length > 0 && steps.every(s => {
+    const at = s.lastIndexOf(fp)
+    return COPY.test(s) && !!live && s.slice(0, at).includes(live) && !/\S/.test(s.slice(at + fp.length).replace(/['"`]/g, ''))
+  })
+}
+
 export function backupFileGuard(on: On, signOff: SignOff) {
   on('tool.call', { tool: ['Edit', 'Write', 'NotebookEdit', 'Bash', 'PowerShell'] }, async ($, e: any, next) => {
     const fp = typeof e.command === 'string'
-      ? shellWritePaths(e.command).find(isBackupCopy) ?? ''
+      ? shellWritePaths(e.command).find(p => isBackupCopy(p) && !onlyMakesBackup(e.command, p)) ?? ''
       : String(e.file_path ?? e.notebook_path ?? '')
     if (!fp || !isBackupCopy(fp)) return next(e)
     const key = `backup\u0000${fp.replace(/\\/g, '/').toLowerCase()}`
