@@ -78,7 +78,8 @@ export function violations(text: string, rules: Rules, confused = false): string
 // Single filler words are deleted in place; a model rewrite for one word can change the meaning.
 export function stripFiller(text: string, banned: RegExp): string {
   const re = new RegExp(`${banned.source},?[ \\t]?(\\w)?`, 'gi')
-  return text.split(/(```[\s\S]*?```|`[^`]*`)/).map((part, i) => i % 2 ? part :
+  // Code and quoted words are left alone: quoting "just" is talking about the word, not using it.
+  return text.split(/(```[\s\S]*?```|`[^`]*`|"[^"\n]*"|“[^”\n]*”)/).map((part, i) => i % 2 ? part :
     part.replace(re, (m, w: string, next?: string) => /\s/.test(w) ? m
       : (next && /[A-Z]/.test(w[0]!) ? next.toUpperCase() : next ?? ''))
   ).join('')
@@ -107,7 +108,9 @@ ${question}
       `confidence figure, name, date, path, ID, link, code span, list item, table row, option, caveat, ` +
       `recommendation and question to the user. Shorten by cutting words, never facts: drop filler, repetition, ` +
       `background, narration of steps taken and restated context; merge sentences and use tighter wording. ` +
-      `If every fact cannot fit the cap, keep every fact and go over the cap. `) +
+      `If every fact cannot fit the cap, keep every fact and go over the cap. ` +
+      `Keep the draft's shape: when it has bullets or a numbered list, the rewrite has them too, one short bullet ` +
+      `per draft bullet; never turn a list into a paragraph. `) +
   `Keep verbatim anything the policy says never to compress. Output only the rewritten reply.
 
 <draft>
@@ -143,11 +146,15 @@ export function survives(unit: string, rewrite: string): boolean {
   return !words.length || words.filter(w => low.includes(w)).length / words.length >= 0.5
 }
 
+/** Protected sentences and error blocks of the original that the rewrite lost. */
+export const lostProtected = (original: string, rewrite: string) => protectedUnits(original).filter(u => !survives(u, rewrite))
+
+// Last resort after the rewrite was asked to keep them: lost warnings go back in as plain bullets.
 export function keepProtected(original: string, rewrite: string): { text: string; kept: number } {
-  const lost = protectedUnits(original).filter(u => !survives(u, rewrite))
+  const lost = lostProtected(original, rewrite)
   if (!lost.length) return { text: rewrite, kept: 0 }
   const list = lost.map(u => u.startsWith('```') ? u : `- ${u}`).join('\n')
-  return { text: `${rewrite}\n\nKept word for word from the full reply:\n${list}`, kept: lost.length }
+  return { text: `${rewrite}\n\n${list}`, kept: lost.length }
 }
 
 export const userText = (t: string) => t.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()

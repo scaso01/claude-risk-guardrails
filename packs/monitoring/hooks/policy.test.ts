@@ -161,3 +161,16 @@ test('a warning kept in other words is not appended again', () => {
   expect(keepProtected(before, after)).toEqual({ text: after, kept: 0 })
   expect(keepProtected(before, 'Nightly check runs at 4:30.').kept).toBe(1)
 })
+
+test('filler inside quotes or code is left alone', () => {
+  const banned = /\b(just)\b/i
+  expect(stripFiller('It removed only the word "just" from it.', banned)).toBe('It removed only the word "just" from it.')
+  expect(stripFiller('It is just fine.', banned)).toBe('It is fine.')
+})
+
+test('lost warnings return as plain bullets with no extra heading', () => {
+  const out = keepProtected('Done.\n\nThe upload failed on the last file.', 'Done.')
+  expect(out.kept).toBe(1)
+  expect(out.text).not.toContain('Kept word for word')
+  expect(out.text).toContain('- The upload failed on the last file.')
+})

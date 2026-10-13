@@ -68,3 +68,9 @@ test('inventory-gate sends back an uncounted claim', { options: { sourceFidelity
   const ok: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Audited 9 of 9 repos; all clean.' } as any)
   expect(ok.block).toBeUndefined()
 })
+
+test('source-fidelity lets through a figure labelled as the writer\'s own', () => {
+  expect(unsupported('I am 65% sure this works (my estimate).', 'nothing here')).toEqual([])
+  expect(unsupported('By my math, 69% of replies ran long.', 'nothing here')).toEqual([])
+  expect(unsupported('The fee is 65%.', 'nothing here')).toEqual(['65%'])
+})

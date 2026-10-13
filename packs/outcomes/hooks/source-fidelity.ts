@@ -15,7 +15,16 @@ export function value(figure: string): number | undefined {
   return Math.round(Number(m[1]) * (m[2] ? MULT[m[2]]! : 1) * 1000) / 1000
 }
 
-/** Figures in the reply that appear nowhere in the source text. */
+// A figure its own sentence already owns up to ("my estimate", "my math") is not passed off as sourced.
+const LABELLED = /\bmy (?:own )?(?:estimate|guess|math|calculation)\b|\bestimated?\b|\bnot sourced\b|\bunsourced\b/i
+
+function sentenceAround(text: string, at: number): string {
+  const start = Math.max(text.lastIndexOf('\n', at), ...['. ', '? ', '! '].map(p => text.lastIndexOf(p, at))) + 1
+  const ends = ['\n', '. ', '? ', '! '].map(p => text.indexOf(p, at)).filter(i => i >= 0)
+  return text.slice(start, ends.length ? Math.min(...ends) + 1 : text.length)
+}
+
+/** Figures in the reply that appear nowhere in the source text and are not labelled as the writer's own. */
 export function unsupported(reply: string, source: string): string[] {
   const text = flat(source)
   const values = new Set<number>()
@@ -29,7 +38,7 @@ export function unsupported(reply: string, source: string): string[] {
     seen.add(key)
     const v = value(fig)
     const found = v === undefined ? text.includes(key) : values.has(v)
-    if (!found) out.push(fig)
+    if (!found && !LABELLED.test(sentenceAround(reply, m.index ?? 0))) out.push(fig)
   }
   return out
 }

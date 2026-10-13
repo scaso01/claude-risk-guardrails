@@ -1,5 +1,5 @@
 import { test, expect, mock } from 'claude-code/testing'
-import { claimsDone } from './clean-tree-on-done'
+import { admitsUncommitted, claimsDone } from './clean-tree-on-done'
 import { dbWrites, pathTag } from './db-snapshot'
 import { ageNote, DEFAULT_DOCS, isTrackedDoc } from './doc-age-stamp'
 import { parseDecisions, removed } from './never-revert'
@@ -262,4 +262,10 @@ test('ledger file names are safe on every platform', () => {
   expect(ledgerFile('/l', at, '', 'w')).toBe('/l/2026-10-08/unknown.w.jsonl')
   expect(writerTag(() => 0)).toBe('000000')
   expect(writerTag(() => 0.999999)).toMatch(/^[0-9a-z]{6}$/)
+})
+
+test('clean-tree-on-done accepts a reply that already says files are uncommitted', () => {
+  expect(admitsUncommitted('The settings change isn\'t committed yet.')).toBe(true)
+  expect(admitsUncommitted('Two files are still uncommitted.')).toBe(true)
+  expect(admitsUncommitted('All done and pushed.')).toBe(false)
 })

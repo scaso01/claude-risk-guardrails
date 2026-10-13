@@ -6,6 +6,10 @@ const DONE = /\b(done|finished|complete[d]?|all set|shipped|implemented|fixed|re
 /** True when the end of a reply claims the work is finished. */
 export const claimsDone = (reply: string) => DONE.test(reply.slice(-600))
 
+/** True when the reply already tells the user that changes are left uncommitted. */
+export const admitsUncommitted = (reply: string) =>
+  /\b(?:uncommitted|not (?:yet )?committed|(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t) (?:yet )?committed|left (?:them |it )?uncommitted)\b/i.test(reply)
+
 /** Paths from `git status --porcelain`, made absolute under the repo root. */
 export function parsePorcelain(root: string, out: string): string[] {
   return out.split(/\r?\n/).filter(l => l.length > 3).map(l => {
@@ -51,7 +55,8 @@ export function cleanTreeOnDone(on: On, edits: EditLog) {
   on('classic.Stop', async ($, e: any, next) => {
     const r = await next(e)
     if (e.stop_hook_active || r.block !== undefined || !baseline) return r
-    if (!claimsDone(String(e.last_assistant_message ?? ''))) return r
+    const reply = String(e.last_assistant_message ?? '')
+    if (!claimsDone(reply) || admitsUncommitted(reply)) return r
     const before = await baseline
     const found = new Map<string, string>()
     for (const f of await uncommitted($, [...edits.session])) found.set(key(f), f)

@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, ownWords, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
+import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, lostProtected, ownWords, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
 
@@ -74,7 +74,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         }
         const base = draft
         const items = listItems(text)
-        for (let attempt = 0; attempt < 2 && vv.length; attempt++) {
+        for (let attempt = 0; attempt < 3 && vv.length; attempt++) {
           const rr: any = await $.model.complete({ model: opts.model, prompt: rewritePrompt(rules, lastPrompt, draft, vv, confused) })
           const cand = rr.isAnswered ? rr.text.trim() : ''
           if (!cand) break
@@ -82,6 +82,8 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           if (!confused && listItems(cand) < items) { vv = [...v, `the rewrite dropped list items; keep all ${items} items and their table rows, shorten the prose instead`]; continue }
           const lost = confused ? [] : droppedFacts(text, cand)
           if (lost.length) { vv = [...v, `the rewrite dropped these facts: ${lost.join(', ')}; put every one back and cut words instead`]; continue }
+          const warned = lostProtected(text, cand)
+          if (warned.length) { vv = [...v, `the rewrite dropped these warnings; keep each one: ${warned.join(' | ')}`]; continue }
           draft = cand
           vv = violations(cand, rules, confused)
         }
