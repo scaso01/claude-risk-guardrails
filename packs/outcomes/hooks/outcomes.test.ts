@@ -50,6 +50,23 @@ test('source-fidelity accepts figures a tool returned and stays out of plain pro
   expect(plain.block).toBeUndefined()
 })
 
+test('source-fidelity reads the transcript, so a reload mid-session forgets nothing', async ($, on) => {
+  const lines = [
+    { type: 'user', message: { content: [{ type: 'tool_result', content: 'a portfolio of ~1,200 active models' }] } },
+    { type: 'attachment', attachment: { type: 'hook_additional_context', content: 'The floor is $200K' } },
+    { type: 'assistant', message: { content: [{ type: 'text', text: 'I guessed a 35% bonus' }] } },
+    { type: 'user', message: { content: 'Stop hook feedback: [source-fidelity] ... figures: $290' } },
+  ].map(l => JSON.stringify(l)).join('\n')
+  world(on)
+  on('fs.read', () => ({ value: lines }))
+  await $.prompt.submit({ text: `Draft a note:\n${JD}`, origin: { kind: 'composer' } } as any)
+  const ok: any = await $.classic.Stop({ stop_hook_active: false, transcript_path: 'C:/t.jsonl', last_assistant_message: 'You ran ~1,200 models; your floor is $200k.' } as any)
+  expect(ok.block).toBeUndefined()
+  const bad: any = await $.classic.Stop({ stop_hook_active: false, transcript_path: 'C:/t.jsonl', last_assistant_message: 'Expect a 35% bonus and $290k base.' } as any)
+  expect(String(bad.block)).toContain('35%')
+  expect(String(bad.block)).toContain('$290k')
+})
+
 // ---- inventory-gate ----
 
 test('inventory-gate wants a count behind a full-coverage claim', () => {

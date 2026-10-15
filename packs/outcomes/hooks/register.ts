@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
 import { heartbeat } from './heartbeat'
 import { inventoryNote, uncountedClaim } from './inventory-gate'
-import { fidelityNote, pastedSource, unsupported } from './source-fidelity'
+import { fidelityNote, pastedSource, transcriptSources, unsupported } from './source-fidelity'
 
 const HISTORY_CAP = 2_000_000
 
@@ -34,7 +34,10 @@ export const register: Register = (on, options) => {
     if (fidelity) {
       const source = pastedSource(prompt, minChars)
       if (source !== undefined) {
-        const figs = unsupported(reply, history)
+        // In-memory history starts empty whenever the plugin loads mid-session; the transcript does not.
+        const path = String(e.transcript_path ?? '')
+        const transcript = path ? await $.fs.read(path).then(transcriptSources).catch(() => '') : ''
+        const figs = unsupported(reply, `${transcript}\n${history}`)
         if (figs.length) notes.push(fidelityNote(figs))
       }
     }

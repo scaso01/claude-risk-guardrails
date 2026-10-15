@@ -50,6 +50,28 @@ export function pastedSource(prompt: string, minChars: number): string | undefin
   return prompt.length >= minChars ? prompt : undefined
 }
 
+const textOf = (c: unknown): string =>
+  typeof c === 'string' ? c
+    : Array.isArray(c) ? c.map(b => (b && typeof b === 'object' && b.type === 'tool_result') ? textOf(b.content)
+      : (b && typeof b === 'object' && typeof b.text === 'string') ? b.text : '').join('\n')
+    : ''
+
+/** Everything the user said, tools returned, or hooks injected this session, never the assistant's own words. */
+export function transcriptSources(jsonl: string): string {
+  const out: string[] = []
+  for (const line of jsonl.split('\n')) {
+    if (!line.trim()) continue
+    let d: any
+    try { d = JSON.parse(line) } catch { continue }
+    let t = ''
+    if (d.type === 'user') t = textOf(d.message?.content)
+    else if (d.type === 'attachment') t = JSON.stringify(d.attachment ?? '')
+    // A flagged figure must not become its own source on the next turn.
+    if (t && !t.includes('[source-fidelity]')) out.push(t)
+  }
+  return out.join('\n')
+}
+
 export function fidelityNote(figures: string[]): string {
   const shown = figures.slice(0, 8).join(', ') + (figures.length > 8 ? `, and ${figures.length - 8} more` : '')
   return `[source-fidelity] Your reply uses figures that are not in the document the user gave you, nor in anything said or returned earlier in this session: ${shown}. ` +
