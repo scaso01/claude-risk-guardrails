@@ -91,6 +91,12 @@ test('source-fidelity lets through a figure labelled as the writer\'s own', () =
   expect(unsupported('By my math, 69% of replies ran long.', 'nothing here')).toEqual([])
   expect(unsupported('The fee is 65%.', 'nothing here')).toEqual(['65%'])
   expect(unsupported('Skip long projects for now (80% confident).', 'nothing here')).toEqual([])
+  expect(unsupported('Restart to apply the update; I recommend it, 80% confidence.', 'nothing here')).toEqual([])
+  expect(unsupported("I'm about 70% sure it redraws cleanly.", 'nothing here')).toEqual([])
+  expect(unsupported('I recommend making the card read task calls (85%).', 'nothing here')).toEqual([])
+  expect(unsupported('Fix: 80% it improves, 60% it holds.', 'nothing here')).toEqual([])
+  expect(unsupported('Answer at 90% confidence or better.', 'nothing here')).toEqual([])
+  expect(unsupported('The bonus is 80% of base.', 'nothing here')).toEqual(['80%'])
   expect(unsupported('Confidence: 90%, up from before.', 'nothing here')).toEqual([])
 })
 

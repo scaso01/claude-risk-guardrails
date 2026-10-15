@@ -16,7 +16,7 @@ export function value(figure: string): number | undefined {
 }
 
 // A figure its own sentence already owns up to ("my estimate", "my math") is not passed off as sourced.
-const LABELLED = /\bmy (?:own )?(?:estimate|guess|math|calculation)\b|\bestimated?\b|\bnot sourced\b|\bunsourced\b|\d+(?:\.\d+)?\s?%\s+(?:confident|sure)\b|\bconfidence\W{1,3}(?:is\s+|of\s+)?\d+(?:\.\d+)?\s?%/i
+const LABELLED = /\bmy (?:own )?(?:estimate|guess|math|calculation)\b|\bestimated?\b|\bnot sourced\b|\bunsourced\b|\d+(?:\.\d+)?\s?%\s+(?:confident|confidence|sure|certain)\b|\bconfidence\W{1,3}(?:is\s+|of\s+)?\d+(?:\.\d+)?\s?%|\b(?:I'm|I am|I'd say)\b[^.%]{0,20}\d+(?:\.\d+)?\s?%|\brecommend\w*\b[^.]{0,80}\(\d+(?:\.\d+)?\s?%\)|\d+(?:\.\d+)?\s?%\s+(?:it|that)\s+(?:improves|holds|works|fixes|ends)\b/i
 
 function sentenceAround(text: string, at: number): string {
   const start = Math.max(text.lastIndexOf('\n', at), ...['. ', '? ', '! '].map(p => text.lastIndexOf(p, at))) + 1
