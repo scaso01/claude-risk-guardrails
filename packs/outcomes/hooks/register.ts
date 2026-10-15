@@ -3,19 +3,23 @@ import { heartbeat } from './heartbeat'
 import { inventoryNote, uncountedClaim } from './inventory-gate'
 import { fidelityNote, pastedSource, unsupported } from './source-fidelity'
 
+const HISTORY_CAP = 2_000_000
+
 export const register: Register = (on, options) => {
   const fidelity = options.sourceFidelity !== false
   const inventory = options.inventoryGate !== false
   const minChars = Math.max(200, Number(options.pasteMinChars ?? 1500) || 1500)
   let prompt = ''
-  let toolText: string[] = []
+  // Every prompt and tool result this session: a figure read three turns ago is still sourced.
+  let history = ''
+  const remember = (s: string) => { history = `${history}\n${s}`.slice(-HISTORY_CAP) }
 
   if (fidelity) {
-    on('prompt.submit', async ($, e, next) => { prompt = e.text; toolText = []; return next(e) })
+    on('prompt.submit', async ($, e, next) => { prompt = e.text; remember(e.text); return next(e) })
     on('tool.call', async ($, e, next) => {
       const r = await next(e)
-      if (typeof r.text === 'string') toolText.push(r.text)
-      else if (r.result !== undefined) toolText.push(JSON.stringify(r.result) ?? '')
+      if (typeof r.text === 'string') remember(r.text)
+      else if (r.result !== undefined) remember(JSON.stringify(r.result) ?? '')
       return r
     })
   }
@@ -30,7 +34,7 @@ export const register: Register = (on, options) => {
     if (fidelity) {
       const source = pastedSource(prompt, minChars)
       if (source !== undefined) {
-        const figs = unsupported(reply, `${prompt}\n${toolText.join('\n')}`)
+        const figs = unsupported(reply, history)
         if (figs.length) notes.push(fidelityNote(figs))
       }
     }

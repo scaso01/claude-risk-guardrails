@@ -59,7 +59,8 @@ for up to three of them is placed next to the report, and a missing commit is ca
 **Stops:** figures in a reply that the document you pasted never stated, such as a salary,
 date or percentage.
 **Responds:** sends back. Figures are compared by value, so `$150k` and `150,000` match.
-Only the figures missing from the source are listed.
+Only the figures missing from the source are listed. The source is every prompt and tool result
+this session, and a figure labelled as the writer's own ("my estimate", "80% confident") passes.
 **Maps to:** SR 26-2 V Outcomes Analysis · NIST AI RMF Measure.
 
 | Option | Default | What it does |

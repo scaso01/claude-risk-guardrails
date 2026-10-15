@@ -1,6 +1,6 @@
 // When the user hands over a document, a reply about it should not add figures the document
 // never stated: a salary, a date, a percentage. A figure passes if it is in the document, in
-// the rest of the prompt, or in anything a tool returned this turn.
+// any prompt this session, or in anything a tool returned this session.
 
 const FIGURE = /\$\s?\d+(?:,\d{3})*(?:\.\d+)?\s?(?:k|m|bn|million|billion|thousand)?\b|\b\d+(?:\.\d+)?\s?%|\b(?:19|20)\d{2}-[01]\d-[0-3]\d\b|\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d{3,}(?:\.\d+)?\b/gi
 
@@ -16,7 +16,7 @@ export function value(figure: string): number | undefined {
 }
 
 // A figure its own sentence already owns up to ("my estimate", "my math") is not passed off as sourced.
-const LABELLED = /\bmy (?:own )?(?:estimate|guess|math|calculation)\b|\bestimated?\b|\bnot sourced\b|\bunsourced\b/i
+const LABELLED = /\bmy (?:own )?(?:estimate|guess|math|calculation)\b|\bestimated?\b|\bnot sourced\b|\bunsourced\b|\d+(?:\.\d+)?\s?%\s+(?:confident|sure)\b|\bconfidence\W{1,3}(?:is\s+|of\s+)?\d+(?:\.\d+)?\s?%/i
 
 function sentenceAround(text: string, at: number): string {
   const start = Math.max(text.lastIndexOf('\n', at), ...['. ', '? ', '! '].map(p => text.lastIndexOf(p, at))) + 1
@@ -52,6 +52,6 @@ export function pastedSource(prompt: string, minChars: number): string | undefin
 
 export function fidelityNote(figures: string[]): string {
   const shown = figures.slice(0, 8).join(', ') + (figures.length > 8 ? `, and ${figures.length - 8} more` : '')
-  return `[source-fidelity] Your reply uses figures that are not in the document the user gave you, nor in anything a tool returned this turn: ${shown}. ` +
+  return `[source-fidelity] Your reply uses figures that are not in the document the user gave you, nor in anything said or returned earlier in this session: ${shown}. ` +
     'For each one, say where it came from, or remove it. Do not present it as part of the document.'
 }

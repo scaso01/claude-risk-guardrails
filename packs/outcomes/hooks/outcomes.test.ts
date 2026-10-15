@@ -73,4 +73,18 @@ test('source-fidelity lets through a figure labelled as the writer\'s own', () =
   expect(unsupported('I am 65% sure this works (my estimate).', 'nothing here')).toEqual([])
   expect(unsupported('By my math, 69% of replies ran long.', 'nothing here')).toEqual([])
   expect(unsupported('The fee is 65%.', 'nothing here')).toEqual(['65%'])
+  expect(unsupported('Skip long projects for now (80% confident).', 'nothing here')).toEqual([])
+  expect(unsupported('Confidence: 90%, up from before.', 'nothing here')).toEqual([])
+})
+
+test('source-fidelity remembers figures from earlier turns', async ($, on) => {
+  world(on, 'Business plan: about $20K in the first half of 2027')
+  await $.prompt.submit({ text: 'read my plan', origin: { kind: 'composer' } } as any)
+  await $.tool.call({ tool: 'Read', file_path: 'plan.md' } as any)
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Read it.' } as any)
+  await $.prompt.submit({ text: `Compare this role to my plan:\n${JD}`, origin: { kind: 'composer' } } as any)
+  const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'The role pays $180k; your plan expects $20K in 2027.' } as any)
+  expect(r.block).toBeUndefined()
+  const made: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Your plan expects $35K.' } as any)
+  expect(String(made.block)).toContain('$35K')
 })
