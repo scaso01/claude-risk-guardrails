@@ -99,8 +99,11 @@ export function publishGate(on: On, signOff: SignOff, options: { pushes: boolean
     const actions = publishActions(command)
     if (!actions.length) return next(e)
     const reasons: string[] = []
+    // The approval covers the held actions, not the whole command line, so the push the refusal
+    // quotes can be rerun alone; the repo is in the key so it never carries to another repo.
+    const held: string[] = []
     for (const a of actions) {
-      if (a.kind === 'visibility') { reasons.push(`"${a.text}" makes a repository public.`); continue }
+      if (a.kind === 'visibility') { reasons.push(`"${a.text}" makes a repository public.`); held.push(a.text); continue }
       if (!options.pushes) continue
       const url = await remoteUrl($, a.remote, a.cwd)
       const repo = url ? githubRepo(url) : undefined
@@ -108,9 +111,11 @@ export function publishGate(on: On, signOff: SignOff, options: { pushes: boolean
       const v = await repoVisibility($, repo)
       if (v === 'PUBLIC') reasons.push(`"${a.text}" pushes to ${repo}, a public repository.`)
       else if (v === 'UNKNOWN') reasons.push(`"${a.text}" pushes to ${repo}, and the guard could not confirm it is private.`)
+      else continue
+      held.push(`${repo}\u0000${a.text}`)
     }
     if (!reasons.length) return next(e)
-    const key = `${e.tool}\u0000${command.trim()}`
+    const key = `${e.tool}\u0000${held.join('\n')}`
     if (signOff.consume(key, await $.clock.now())) return next(e)
     return { deny: `[publish-gate] Refused: ${reasons.join(' ')} ${signOffText(signOff.codeFor(key))}` }
   }).catch(($, e, next) => (next.called ? next(e) : { deny: '[publish-gate] Refused: the gate could not check this command, so it is held for a human.' }))

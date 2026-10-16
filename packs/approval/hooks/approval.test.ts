@@ -114,6 +114,25 @@ test('publish-gate holds pushes to public repos only', async ($, on) => {
   expect(reached.length).toBe(1)
 })
 
+test('a push approved inside a longer command runs alone, once, and only to that repo', async ($, on) => {
+  const { reached } = world(on, argv => {
+    if (argv[1] === 'remote') return { exitCode: 0, stdout: argv[4] === 'origin' ? 'git@github.com:me/open.git\n' : 'git@github.com:me/other.git\n' }
+    if (argv[0] === 'gh') return { exitCode: 0, stdout: 'PUBLIC\n' }
+    return { exitCode: 1, stdout: '' }
+  })
+  const first: any = await $.tool.call({ tool: 'Bash', command: 'git add a && git commit -m x && git push -q origin main 2>&1 | tail -3' } as any)
+  expect(denyText(first)).toContain('"git push -q origin main 2>&1" pushes to me/open')
+  const code = /approve (G-\d{4})/.exec(denyText(first))![1]
+  await $.prompt.submit({ text: `approve ${code}`, origin: { kind: 'composer' } } as any).catch(() => undefined)
+  const other: any = await $.tool.call({ tool: 'Bash', command: 'git push -q fork main 2>&1' } as any)
+  expect(denyText(other)).toContain('pushes to me/other')
+  const alone: any = await $.tool.call({ tool: 'Bash', command: 'git push -q origin main 2>&1' } as any)
+  expect(denyText(alone)).toBe('')
+  const again: any = await $.tool.call({ tool: 'Bash', command: 'git push -q origin main 2>&1' } as any)
+  expect(denyText(again)).toContain('[publish-gate] Refused')
+  expect(reached.length).toBe(1)
+})
+
 test('publish-gate falls back to the GitHub API when gh is missing', async ($, on) => {
   const { reached } = world(on, argv => argv[1] === 'remote' ? { exitCode: 0, stdout: 'https://github.com/me/x\n' } : { exitCode: 1, stdout: '' },
     url => url.endsWith('/me/x') ? 404 : 500)
