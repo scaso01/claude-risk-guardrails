@@ -162,23 +162,25 @@ export const userText = (t: string) => t.replace(/<system-reminder>[\s\S]*?<\/sy
 // Pasted text is not Sean asking: "Full-time" in a pasted job posting must not lift the cap.
 export const ownWords = (t: string) => t.replace(/<pasted_content\b[^>]*>[\s\S]*?<\/pasted_content\b[^>]*>/g, ' ').trim()
 
-const ITEM = /^[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S/
+const ITEM = /^[ \t]*(?:[-*+•]|\d+[.)])[ \t]+\S/
 // Old gap lines are stripped: a zero-width-space line printed as three blank lines (Sean, 2026-10-16).
 const GAP = String.fromCharCode(0x200b)
 
-/** One plain blank line between list items, outside code blocks. */
+/**
+ * One plain blank line between list items, outside code blocks. The terminal draws a markdown
+ * list tight whatever the blank lines, so top-level items become paragraphs: "-" turns into "•"
+ * and "1." into "1\." (an escaped number is plain text), and paragraphs keep their gap.
+ */
 export function spaceBullets(text: string): string {
   return text.split(/(```[\s\S]*?```)/).map((part, i) => {
     if (i % 2) return part
     const out: string[] = []
-    let inItem = false
     for (const line of part.split('\n')) {
       if (ITEM.test(line)) {
         while (out.length && ['', GAP].includes(out[out.length - 1]!.trim())) out.pop()
         if (out.length) out.push('')
-        inItem = true
-      } else if (line.trim() !== '' && !/^[ \t]/.test(line) && line.trim() !== GAP) {
-        inItem = false
+        out.push(line.replace(/^[-*+][ \t]+/, '• ').replace(/^(\d+)([.)])[ \t]+/, '$1\\$2 '))
+        continue
       }
       out.push(line)
     }

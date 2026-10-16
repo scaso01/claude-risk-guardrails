@@ -148,10 +148,11 @@ test('lift and confusion words inside pasted text do not count as the ask', () =
 test('spaceBullets puts a visible gap between bullets and leaves code and tables alone', () => {
   const G = '\n\n'
   const old = ['', '', String.fromCharCode(0x200b), '', ''].join('\n')
-  expect(spaceBullets('Answer.\n- one\n- two\n1. three')).toBe(`Answer.\n\n- one${G}- two${G}1. three`)
-  expect(spaceBullets('Answer.\n\n- one\n\n- two')).toBe(`Answer.\n\n- one${G}- two`)
-  expect(spaceBullets(`Answer.\n\n- one${old}- two`)).toBe(`Answer.\n\n- one${G}- two`)
-  expect(spaceBullets('- one\n  more of one\n- two\n\nAfter.\n- three')).toBe(`- one\n  more of one${G}- two\n\nAfter.\n\n- three`)
+  expect(spaceBullets('Answer.\n- one\n- two\n1. three')).toBe(`Answer.\n\n• one${G}• two${G}1\\. three`)
+  expect(spaceBullets('Answer.\n\n- one\n\n* two\n+ three')).toBe(`Answer.\n\n• one${G}• two${G}• three`)
+  expect(spaceBullets(`Answer.\n\n- one${old}- two`)).toBe(`Answer.\n\n• one${G}• two`)
+  expect(spaceBullets(`Answer.\n\n• one${G}• two`)).toBe(`Answer.\n\n• one${G}• two`)
+  expect(spaceBullets('- one\n  more of one\n- two\n\nAfter.\n2) three\n  - nested')).toBe(`• one\n  more of one${G}• two\n\nAfter.\n\n2\\) three${G}  - nested`)
   expect(spaceBullets('```\n- a\n- b\n```')).toBe('```\n- a\n- b\n```')
   expect(spaceBullets('| a |\n|---|\n| - b |')).toBe('| a |\n|---|\n| - b |')
 })
