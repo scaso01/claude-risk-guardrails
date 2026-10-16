@@ -163,12 +163,10 @@ export const userText = (t: string) => t.replace(/<system-reminder>[\s\S]*?<\/sy
 export const ownWords = (t: string) => t.replace(/<pasted_content\b[^>]*>[\s\S]*?<\/pasted_content\b[^>]*>/g, ' ').trim()
 
 const ITEM = /^[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S/
-// Terminals render a markdown list tight even with blank lines between items; a paragraph
-// holding only a zero-width space survives as an empty gap line (an entity would print as text,
-// and a U+00A0 line is read as blank).
+// Old gap lines are stripped: a zero-width-space line printed as three blank lines (Sean, 2026-10-16).
 const GAP = String.fromCharCode(0x200b)
 
-/** A visible gap between list items, outside code blocks, so lists read easily. */
+/** One plain blank line between list items, outside code blocks. */
 export function spaceBullets(text: string): string {
   return text.split(/(```[\s\S]*?```)/).map((part, i) => {
     if (i % 2) return part
@@ -177,7 +175,7 @@ export function spaceBullets(text: string): string {
     for (const line of part.split('\n')) {
       if (ITEM.test(line)) {
         while (out.length && ['', GAP].includes(out[out.length - 1]!.trim())) out.pop()
-        if (out.length) out.push('', ...(inItem ? [GAP, ''] : []))
+        if (out.length) out.push('')
         inItem = true
       } else if (line.trim() !== '' && !/^[ \t]/.test(line) && line.trim() !== GAP) {
         inItem = false
