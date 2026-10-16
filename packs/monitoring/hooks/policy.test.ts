@@ -146,7 +146,7 @@ test('lift and confusion words inside pasted text do not count as the ask', () =
 })
 
 test('spaceBullets puts a visible gap between bullets and leaves code and tables alone', () => {
-  const G = '\n\n&nbsp;\n\n'
+  const G = ['', '', String.fromCharCode(0x200b), '', ''].join('\n')
   expect(spaceBullets('Answer.\n- one\n- two\n1. three')).toBe(`Answer.\n\n- one${G}- two${G}1. three`)
   expect(spaceBullets('Answer.\n\n- one\n\n- two')).toBe(`Answer.\n\n- one${G}- two`)
   expect(spaceBullets(`Answer.\n\n- one${G}- two`)).toBe(`Answer.\n\n- one${G}- two`)

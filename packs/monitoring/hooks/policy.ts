@@ -164,8 +164,9 @@ export const ownWords = (t: string) => t.replace(/<pasted_content\b[^>]*>[\s\S]*
 
 const ITEM = /^[ \t]*(?:[-*•]|\d+[.)])[ \t]+\S/
 // Terminals render a markdown list tight even with blank lines between items; a paragraph
-// holding only a no-break space survives as a visible gap.
-const GAP = '&nbsp;'
+// holding only a zero-width space survives as an empty gap line (an entity would print as text,
+// and a U+00A0 line is read as blank).
+const GAP = String.fromCharCode(0x200b)
 
 /** A visible gap between list items, outside code blocks, so lists read easily. */
 export function spaceBullets(text: string): string {
