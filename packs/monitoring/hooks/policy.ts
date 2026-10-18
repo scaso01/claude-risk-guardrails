@@ -171,6 +171,7 @@ const GAP = String.fromCharCode(0x200b)
  * list tight whatever the blank lines, so top-level items become paragraphs: "-" turns into "•"
  * and "1." into "1\." (an escaped number is plain text), and paragraphs keep their gap.
  */
+const HEADING = /^[A-Z][A-Za-z ]{0,20}:\s*$/
 export function spaceBullets(text: string): string {
   return text.split(/(```[\s\S]*?```)/).map((part, i) => {
     if (i % 2) return part
@@ -178,7 +179,7 @@ export function spaceBullets(text: string): string {
     for (const line of part.split('\n')) {
       if (ITEM.test(line)) {
         while (out.length && ['', GAP].includes(out[out.length - 1]!.trim())) out.pop()
-        if (out.length) out.push('')
+        if (out.length && !HEADING.test(out[out.length - 1]!)) out.push('')
         out.push(line.replace(/^[-*+][ \t]+/, '• ').replace(/^(\d+)([.)])[ \t]+/, '$1\\$2 '))
         continue
       }
@@ -187,6 +188,13 @@ export function spaceBullets(text: string): string {
     return out.join('\n')
   }).join('')
 }
+
+/** Sent beside each prompt: a length rule in the user turn is followed more closely than one in the system prompt alone. */
+export const lengthReminder = (rules: Rules) =>
+  `Length rule for this reply: at most ${rules.lineCap} lines and ${rules.wordCap} words (a table of up to ${rules.tableRows} rows counts as 1 line; code is excluded). ` +
+  'Shape: one answer sentence, then the points grouped under plain headings such as Done:, To do: or Your call:, ' +
+  'each heading alone on its line with no bold or stars, and its - bullets of 12 words or fewer under it. ' +
+  'Keep every point, with its status, certainty and scope exact. Drop how you got there and restated context.'
 
 /** Agent reports and harness notices arrive as prompts but are not the user's question. */
 export const isNotice = (t: string) => /^<(?!pasted_content)/.test(t) || /^Mod hot-reloading is off/.test(t)

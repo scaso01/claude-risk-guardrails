@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, ownWords, spaceBullets } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, spaceBullets } from './policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -154,6 +154,7 @@ test('spaceBullets puts a visible gap between bullets and leaves code and tables
   expect(spaceBullets(`Answer.\n\n• one${G}• two`)).toBe(`Answer.\n\n• one${G}• two`)
   expect(spaceBullets('- one\n  more of one\n- two\n\nAfter.\n2) three\n  - nested')).toBe(`• one\n  more of one${G}• two\n\nAfter.\n\n2\\) three${G}  - nested`)
   expect(spaceBullets('```\n- a\n- b\n```')).toBe('```\n- a\n- b\n```')
+  expect(spaceBullets('Answer.\n\nDone:\n- one\n- two\n\nTo do:\n- three')).toBe(`Answer.\n\nDone:\n• one${G}• two\n\nTo do:\n• three`)
   expect(spaceBullets('| a |\n|---|\n| - b |')).toBe('| a |\n|---|\n| - b |')
 })
 
@@ -175,4 +176,13 @@ test('lost warnings return as plain bullets with no extra heading', () => {
   expect(out.kept).toBe(1)
   expect(out.text).not.toContain('Kept word for word')
   expect(out.text).toContain('- The upload failed on the last file.')
+})
+
+test('the length reminder states the caps from the policy file', () => {
+  const r = { ...parseRules(MD), lineCap: 5, wordCap: 100, tableRows: 4 }
+  const t = lengthReminder(r)
+  expect(t).toContain('at most 5 lines and 100 words')
+  expect(t).toContain('up to 4 rows')
+  expect(t).toContain('grouped under plain headings')
+  expect(t).toContain('12 words or fewer')
 })

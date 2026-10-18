@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, droppedFacts, hasList, isNotice, keepProtected, listItems, lostProtected, ownWords, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
+import { countWords, droppedFacts, hasList, isNotice, keepProtected, lengthReminder, listItems, lostProtected, ownWords, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
 
@@ -37,10 +37,22 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
   let lastFull = ''
   let fromPhone: Promise<boolean> | undefined
 
-  on('prompt.submit', ($, e, next) => {
+  on('prompt.submit', async ($, e, next) => {
     const t = userText(e.text)
-    if (!isNotice(t)) lastPrompt = t
-    return next(e)
+    if (isNotice(t)) return next(e)
+    lastPrompt = t
+    let rules
+    try {
+      const file = opts.policyFile ? await expand($, opts.policyFile) : `${$.plugin.root}/policies/terse.md`
+      rules = parseRules(await $.fs.read(file))
+    } catch (err) {
+      // An unreadable policy file must never block the prompt; the reply check reports it.
+      $.ui.status(`reply-policy: no length reminder: ${(err as Error).message}`)
+      return next(e)
+    }
+    // Lifting words and confusion change the length rule, so no reminder then.
+    if (rules.lift.test(ownWords(t)) || rules.confused.test(ownWords(t))) return next(e)
+    return next({ ...e, context: [...(e.context ?? []), lengthReminder(rules)] })
   })
 
   on('command.run', { command: 'full-reply' }, async () =>
