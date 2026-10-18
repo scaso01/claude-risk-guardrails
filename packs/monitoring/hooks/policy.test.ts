@@ -56,13 +56,12 @@ test('single filler words are deleted in place; phrases and code are left for th
   expect(violations(stripFiller('This is very clear.', r.banned), r)).toEqual([])
 })
 
-test('confusion mode demands one paragraph and a closing question, no bullets', () => {
+test('confusion mode keeps bullets and halves the word cap', () => {
   const bullets = 'A mod is code.\n\n- one\n- two'
-  expect(hasList(bullets)).toBe(true)
-  expect(violations(bullets, r, false)).toEqual([])
-  expect(violations(bullets, r, true)).toEqual(['the user is confused: no bullets or tables', 'the user is confused: end with one concrete question'])
-  const good = 'A mod is one program that stays running inside Claude Code and handles every job itself.\n\nWant me to build a small one so you can see it?'
-  expect(violations(good, r, true)).toEqual([])
+  expect(violations(bullets, r, true)).toEqual([])
+  const long = Array(70).fill('word').join(' ')
+  expect(violations(long, r, false).some(x => /confused/.test(x))).toBe(false)
+  expect(violations(long, r, true)).toContain('the user is confused: at most 60 words')
 })
 
 test('finds warning, error and unverified sentences, including ones inside bullets and code', () => {
@@ -185,4 +184,6 @@ test('the length reminder states the caps from the policy file', () => {
   expect(t).toContain('up to 4 rows')
   expect(t).toContain('grouped under plain headings')
   expect(t).toContain('12 words or fewer')
+  expect(lengthReminder(r, true)).toContain('at most 2 lines and 50 words'.replace('2 lines','5 lines'))
+  expect(lengthReminder(r, true)).toContain('Recommend: first')
 })

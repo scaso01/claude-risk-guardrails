@@ -50,9 +50,8 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
       $.ui.status(`reply-policy: no length reminder: ${(err as Error).message}`)
       return next(e)
     }
-    // Lifting words and confusion change the length rule, so no reminder then.
-    if (rules.lift.test(ownWords(t)) || rules.confused.test(ownWords(t))) return next(e)
-    return next({ ...e, context: [...(e.context ?? []), lengthReminder(rules)] })
+    if (rules.lift.test(ownWords(t))) return next(e)
+    return next({ ...e, context: [...(e.context ?? []), lengthReminder(rules, rules.confused.test(ownWords(t)))] })
   })
 
   on('command.run', { command: 'full-reply' }, async () =>
@@ -90,7 +89,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           const rr: any = await $.model.complete({ model: opts.model, prompt: rewritePrompt(rules, lastPrompt, draft, vv, confused) })
           const cand = rr.isAnswered ? rr.text.trim() : ''
           if (!cand) break
-          if (!confused && hasList(text) && !hasList(cand)) { vv = [...v, 'the rewrite dropped the list; keep the main points as a list']; continue }
+          if (hasList(text) && !hasList(cand)) { vv = [...v, 'the rewrite dropped the list; keep the main points as a list']; continue }
           if (!confused && listItems(cand) < items) { vv = [...v, `the rewrite dropped list items; keep all ${items} items and their table rows, shorten the prose instead`]; continue }
           const lost = confused ? [] : droppedFacts(text, cand)
           if (lost.length) { vv = [...v, `the rewrite dropped these facts: ${lost.join(', ')}; put every one back and cut words instead`]; continue }
