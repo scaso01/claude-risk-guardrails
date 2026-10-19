@@ -183,10 +183,12 @@ test('the length reminder states the caps from the policy file', () => {
   const t = lengthReminder(r)
   expect(t).toContain('at most 5 lines and 100 words')
   expect(t).toContain('up to 4 rows')
-  expect(t).toContain('grouped under plain headings')
-  expect(t).toContain('12 words or fewer')
+  expect(t).not.toContain('Shape')
   expect(lengthReminder(r, true)).toContain('at most 5 lines and 100 words')
-  expect(lengthReminder(r, true)).toContain('Recommend: first')
+  expect(lengthReminder(r, true)).toContain('recommendation first')
+  const withShape = parseRules(MD + ' Shape: one answer sentence, then up to 3 bullets. No paragraph longer than 2 sentences.')
+  expect(withShape.shape).toBe('one answer sentence, then up to 3 bullets.')
+  expect(lengthReminder(withShape)).toContain('Shape, from the policy file: one answer sentence, then up to 3 bullets.')
 })
 
 test('reply rewrites stay off unless the option is set to true', () => {

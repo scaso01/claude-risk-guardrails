@@ -2,7 +2,7 @@
 // warnings word for word through a rewrite. No I/O here.
 
 export type Rules = {
-  lineCap: number; wordCap: number; tableRows: number
+  lineCap: number; wordCap: number; tableRows: number; shape: string
   lift: RegExp; banned: RegExp; leadIn: RegExp; confused: RegExp; text: string
 }
 
@@ -15,6 +15,7 @@ export function parseRules(md: string): Rules {
   const flat = md.replace(/\s+/g, ' ')
   const cap = flat.match(/Hard cap (\d+) lines and (\d+) words/)
   const table = flat.match(/table of up to (\d+) rows/)
+  const shape = flat.match(/Shape: (.+?)(?= No paragraph longer| Exception:|$)/)
   const lift = flat.match(/Only (.+?) lifts the cap/)
   const filler = flat.match(/Delete on sight: (.+?)\./)
   const lead = flat.match(/No lead-ins: (.+?)\./)
@@ -26,6 +27,7 @@ export function parseRules(md: string): Rules {
     lineCap: +cap![1]!,
     wordCap: +cap![2]!,
     tableRows: +table![1]!,
+    shape: shape?.[1]?.trim() ?? '',
     lift: anyOfQuoted(lift![1]!, 'i'),
     banned: anyOf(filler![1]!.split(',').map(w => w.trim()).filter(Boolean), 'gi'),
     leadIn: anyOfQuoted(lead![1]!, 'i', '^\\s*'),
@@ -187,10 +189,9 @@ export function spaceBullets(text: string): string {
 
 /** Sent beside each prompt: a length rule in the user turn is followed more closely than one in the system prompt alone. */
 export const lengthReminder = (rules: Rules, confused = false) =>
-  (confused ? `The user is confused: use simpler words, never more of them. Put Recommend: first with one clear decision and use everyday words. ` : '') +
+  (confused ? `The user is confused: use simpler words, never more of them. Put the recommendation first with one clear decision and use everyday words. ` : '') +
   `Length rule for this reply: at most ${rules.lineCap} lines and ${rules.wordCap} words (a table of up to ${rules.tableRows} rows counts as 1 line; code is excluded). ` +
-  'Shape: one answer sentence, then the points grouped under plain headings such as Done:, To do: or Your call:, ' +
-  'each heading alone on its line with no bold or stars, and its - bullets of 12 words or fewer under it. ' +
+  (rules.shape ? `Shape, from the policy file: ${rules.shape} ` : '') +
   'Keep every point, with its status, certainty and scope exact. Drop how you got there and restated context.'
 
 /** Agent reports and harness notices arrive as prompts but are not the user's question. */
