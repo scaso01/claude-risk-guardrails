@@ -1,5 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, spaceBullets } from './policy'
+import { replyPolicyOptions } from './reply-policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -10,7 +11,7 @@ rows counts as 1 line, a bigger table counts every row; code is excluded. Only "
 - No lead-ins: "Sure", "Certainly", "Great question", "I'd be happy to", "Let me".
 When the user signals confusion ("don't understand", "confused", "confusing",
 "what do you mean", "makes no sense", "I'm lost", "explain again"), drop every table,
-every bullet and all jargon: one plain-English paragraph plus one concrete question.`
+go shorter and simpler: half the word cap, the recommendation first.`
 
 const r = parseRules(MD)
 
@@ -186,4 +187,11 @@ test('the length reminder states the caps from the policy file', () => {
   expect(t).toContain('12 words or fewer')
   expect(lengthReminder(r, true)).toContain('at most 2 lines and 50 words'.replace('2 lines','5 lines'))
   expect(lengthReminder(r, true)).toContain('Recommend: first')
+})
+
+test('reply rewrites stay off unless the option is set to true', () => {
+  expect(replyPolicyOptions({}).rewrite).toBe(false)
+  expect(replyPolicyOptions({ replyPolicy: true }).rewrite).toBe(false)
+  expect(replyPolicyOptions({ replyPolicyRewrite: 'true' }).rewrite).toBe(false)
+  expect(replyPolicyOptions({ replyPolicyRewrite: true }).rewrite).toBe(true)
 })

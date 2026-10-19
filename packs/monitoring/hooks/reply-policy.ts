@@ -3,6 +3,13 @@ import { countWords, droppedFacts, hasList, isNotice, keepProtected, lengthRemin
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string; rewrite: boolean }
 
+export const replyPolicyOptions = (o: Record<string, unknown>): ReplyPolicyOptions => ({
+  policyFile: String(o.replyPolicyFile ?? '').trim(),
+  model: String(o.replyPolicyModel || 'sonnet'),
+  logDir: String(o.replyPolicyLogDir ?? '~/.claude/guardrails/reply-policy').trim(),
+  rewrite: o.replyPolicyRewrite === true,
+})
+
 // A chat started from Remote Control has no surface and reads like a scripted run; what sets it
 // apart on Windows is a `claude remote-control` process among its ancestors.
 const ANCESTRY = `$i=$PID; $out=@(); foreach($n in 1..6){ $p=Get-CimInstance Win32_Process -Filter "ProcessId=$i"; if(-not $p){break}; $out+=$p.CommandLine; $i=$p.ParentProcessId }; $out -join "\`n"`

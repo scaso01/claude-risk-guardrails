@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 import { agentHold } from './agent-hold'
-import { replyPolicy } from './reply-policy'
+import { replyPolicy, replyPolicyOptions } from './reply-policy'
 import { staleNumberFlag } from './stale-number-flag'
 
 const PACKS = ['guardrails-approval', 'guardrails-records', 'guardrails-monitoring', 'guardrails-development', 'guardrails-outcomes', 'guardrails-challenge']
@@ -18,12 +18,7 @@ export const register: Register = (on, options) => {
     }, options.agentNameStrip !== false)
   }
   if (policy) {
-    replyPolicy(on, {
-      policyFile: String(options.replyPolicyFile ?? '').trim(),
-      model: String(options.replyPolicyModel || 'sonnet'),
-      logDir: String(options.replyPolicyLogDir ?? '~/.claude/guardrails/reply-policy').trim(),
-      rewrite: options.replyPolicyRewrite === true,
-    })
+    replyPolicy(on, replyPolicyOptions(options))
   }
   if (options.staleNumberFlag !== false) {
     staleNumberFlag(on, String(options.notesPaths || '/memory/, /notes/').split(',').map(s => s.trim()).filter(Boolean))
