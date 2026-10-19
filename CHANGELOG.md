@@ -18,10 +18,10 @@
 
 ### source-fidelity
 - Accepts confidence estimates in common wordings ("80% confidence", "70% sure", "(85%)" after a recommendation).
-- Reads the session transcript at check time and remembers figures from earlier turns, so a plugin reload no longer forgets earlier reads.
+- Reads the session transcript at check time and remembers figures the user gave or tools returned in earlier turns, so a plugin reload no longer forgets them.
 
 ### Other controls
-- backup-file-guard: copying a live file to a backup name is allowed; editing the backup stays blocked.
+- backup-file-guard: copying a live file to a backup name is allowed; editing the backup stays blocked without a sign-off.
 - publish-gate: an approval covers the held push and its repository, not the whole command line.
 - turn-ledger: one file per process per day, so concurrent sessions never lose a row.
 
