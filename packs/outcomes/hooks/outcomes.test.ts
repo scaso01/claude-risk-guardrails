@@ -76,6 +76,11 @@ test('inventory-gate wants a count behind a full-coverage claim', () => {
   expect(uncountedClaim('Checked 25 of 25 guardrails: every one has a test.')).toBe(false)
   expect(uncountedClaim("I'll check every file next.")).toBe(false)
   expect(uncountedClaim('The tests pass.')).toBe(false)
+  expect(uncountedClaim("I've gone through everything you sent.")).toBe(true)
+  expect(uncountedClaim('- Checked every hook for double firing.')).toBe(true)
+  expect(uncountedClaim("Each day's checked count goes to counts.json.")).toBe(false)
+  expect(uncountedClaim('Every reply is checked against the policy file.')).toBe(false)
+  expect(uncountedClaim('It checks each final reply before you see it.')).toBe(false)
 })
 
 test('inventory-gate sends back an uncounted claim', { options: { sourceFidelity: false } }, async ($, on) => {

@@ -1,7 +1,9 @@
 // "I reviewed everything" means nothing unless "everything" was listed. A full-coverage claim
 // must say how many items were checked out of how many were inventoried.
 
-const CLAIM = /\b(everything|all|every|each)\b[^.\n]{0,50}\b(reviewed|checked|audited|verified|covered|inspected|scanned|went through)\b|\b(reviewed|checked|audited|verified|went through|inspected|scanned)\b[^.\n]{0,30}\b(everything|all of|every|each)\b/i
+// Only the writer's own coverage counts: "I reviewed everything", "Checked all of the hooks".
+// Descriptions of what code does ("each reply is checked", "each day's checked count") do not.
+const CLAIM = /\b(?:I|I've|I have|we|we've|we have)\b[^.\n]{0,15}\b(?:everything|all|every|each)\b[^.\n]{0,50}\b(?:reviewed|checked|audited|verified|covered|inspected|scanned|went through|gone through|looked at)\b|(?:^\s*(?:[-*•]\s+)?|[.!?:;]\s+|\n\s*(?:[-*•]\s+)?|\b(?:I|I've|I have|we|we've|we have)\s+(?:also\s+|now\s+)?)(?:reviewed|checked|audited|verified|inspected|scanned|went through|gone through|looked at)\b[^.\n]{0,30}\b(?:everything|all|every|each)\b/i
 const COUNT = /\b\d+\s*(?:of|out of|\/)\s*\d+\b|\ball\s+\d+\b|\b\d+\s+(?:files|items|repos|pages|rows|entries|tests|tasks|hooks|packs|sources|documents|records)\b/i
 const FUTURE = /\b(i'll|i will|will|going to|let me|should|could|to)\s+(?:\w+\s+){0,2}(review|check|audit|verify|inspect|scan|go through)\b/i
 
@@ -17,4 +19,5 @@ export function uncountedClaim(reply: string): boolean {
 
 export const inventoryNote =
   '[inventory-gate] Your reply claims full coverage ("all", "every", "everything") but never says how many items that was. ' +
-  'State it as a count, for example "checked 14 of 14 files". If you never listed the items, list them first, then check them.'
+  'Reply with one line only, and do not repeat or replace your answer, which the user already sees: state the count, for example "checked 14 of 14 files", ' +
+  'or, if those words described what something does rather than what you checked, say so in one line.'
