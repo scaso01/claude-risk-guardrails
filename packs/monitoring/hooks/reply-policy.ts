@@ -1,7 +1,7 @@
 import type { On } from 'claude-code'
 import { countWords, droppedFacts, hasList, isNotice, keepProtected, lengthReminder, listItems, lostProtected, ownWords, parseRules, rewritePrompt, spaceBullets, stripFiller, userText, violations } from './policy'
 
-export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string }
+export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string; rewrite: boolean }
 
 // A chat started from Remote Control has no surface and reads like a scripted run; what sets it
 // apart on Windows is a `claude remote-control` process among its ancestors.
@@ -85,7 +85,8 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         }
         const base = draft
         const items = listItems(text)
-        for (let attempt = 0; attempt < 3 && vv.length; attempt++) {
+        // A model rewrite is the one step that can lose a point, so it runs only when asked for.
+        for (let attempt = 0; opts.rewrite && attempt < 3 && vv.length; attempt++) {
           const rr: any = await $.model.complete({ model: opts.model, prompt: rewritePrompt(rules, lastPrompt, draft, vv, confused) })
           const cand = rr.isAnswered ? rr.text.trim() : ''
           if (!cand) break

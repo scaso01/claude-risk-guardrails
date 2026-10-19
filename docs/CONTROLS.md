@@ -104,15 +104,19 @@ bypasses the hold.
 ### reply-policy
 
 **Stops:** replies that break your written response policy.
-**Responds:** checks each final reply against the policy file. A reply that breaks it is
-rewritten by a second model. Warnings and error text are never cut, the original is one
-`/full-reply` away, and each violation is logged so rates can be measured. **Off by default.**
+**Responds:** checks each final reply against the policy file. Before each answer it reminds
+the model of the length rule; after, it deletes filler words and logs each violation so rates
+can be measured. With `replyPolicyRewrite` on, a reply that breaks the policy is also rewritten
+by a second model; warnings and error text are never cut, and the original is one `/full-reply`
+away. Rewrites are off by default because they are the one step that can lose a point.
+**Off by default.**
 It runs only in sessions a person is typing into, never in scripted runs.
 **Maps to:** SR 26-2 V Ongoing Monitoring · NIST AI RMF Measure, Manage.
 
 | Option | Default | What it does |
 |---|---|---|
 | `replyPolicyFile` | bundled `policies/terse.md` | Your policy. It must state a line and word cap ("Hard cap N lines and M words"), a table rule, the words that lift the cap, a filler list and a lead-in list, in the bundled file's wording. The check refuses to run, and says so, if any of these is missing. |
+| `replyPolicyRewrite` | `false` | Rewrite a reply that breaks the policy with a second model. In testing it cut about 7 words a reply and lost 2 of 146 points. |
 | `replyPolicyModel` | `sonnet` | The model that rewrites a reply. |
 | `replyPolicyLogDir` | `~/.claude/guardrails/reply-policy` | One JSON file per reply that broke the policy. Empty turns logging off. |
 

@@ -22,6 +22,7 @@ export const register: Register = (on, options) => {
       policyFile: String(options.replyPolicyFile ?? '').trim(),
       model: String(options.replyPolicyModel || 'sonnet'),
       logDir: String(options.replyPolicyLogDir ?? '~/.claude/guardrails/reply-policy').trim(),
+      rewrite: options.replyPolicyRewrite === true,
     })
   }
   if (options.staleNumberFlag !== false) {

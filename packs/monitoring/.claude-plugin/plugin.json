@@ -47,7 +47,13 @@
     "replyPolicy": {
       "type": "boolean",
       "title": "reply-policy",
-      "description": "Check each final reply against a written policy and rewrite it with a second model when it breaks the rules. Warnings are kept word for word; /full-reply shows the original. Costs one extra model call per rewritten reply.",
+      "description": "Check each final reply against a written policy: remind the model of the length rule before it answers, delete filler words, space out bullets, and log each violation. Model rewrites are a separate option.",
+      "default": false
+    },
+    "replyPolicyRewrite": {
+      "type": "boolean",
+      "title": "reply-policy: rewrite long replies",
+      "description": "Have a second model shorten a reply that breaks the policy. Off by default: in testing, rewrites cut about 7 words a reply and lost 2 of 146 points. Warnings are kept word for word; /full-reply shows the original.",
       "default": false
     },
     "replyPolicyFile": {

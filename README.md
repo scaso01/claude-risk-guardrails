@@ -86,7 +86,7 @@ All 25, each with its screenshot, are in [docs/CONTROLS.md](docs/CONTROLS.md).
 | Guardrail | What it stops | SR 26-2 (by analogy) | NIST AI RMF |
 |---|---|---|---|
 | `agent-hold` | Delegated work arriving piecemeal, so you act on one report before the others land. Background agents' reports are held until the last one finishes, then delivered together. | VI Governance & Controls | Manage |
-| `reply-policy` | Replies that break your written response policy. Each final reply is checked against the policy file and rewritten by a second model when it breaks the rules. Violations are logged for review. Off by default. | V Ongoing Monitoring | Measure, Manage |
+| `reply-policy` | Replies that break your written response policy. Each final reply is checked against the policy file, filler words are deleted and violations are logged for review; an optional second-model rewrite shortens replies that break the rules. Off by default. | V Ongoing Monitoring | Measure, Manage |
 | `controls-watchdog` | A guardrail that silently stops loading. `/guardrails-status` shows when each pack last loaded, and an outside script warns at session start when a pack has gone missing. | VI Roles & Responsibilities (the internal-audit role) | Govern |
 | `stale-number-flag` | Counts and figures saved to notes with no date, which go stale without anyone noticing. | V Ongoing Monitoring (data relevance) | Measure |
 
