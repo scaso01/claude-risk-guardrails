@@ -59,8 +59,6 @@ export const listItems = (t: string) =>
 const hasTable = (t: string) => /^\s*\|/m.test(prose(t))
 const paragraphs = (t: string) => prose(t).split(/\n\s*\n/).filter(p => p.trim()).length
 
-export const confusedCap = (rules: Rules) => Math.floor(rules.wordCap / 2)
-
 export function violations(text: string, rules: Rules, confused = false): string[] {
   const v: string[] = []
   const lines = countLines(text, rules.tableRows), words = countWords(text)
@@ -69,7 +67,6 @@ export function violations(text: string, rules: Rules, confused = false): string
   const banned = [...new Set((prose(text).match(rules.banned) ?? []).map(w => w.toLowerCase()))]
   if (banned.length) v.push(`filler: ${banned.join(', ')}`)
   if (rules.leadIn.test(prose(text))) v.push('lead-in opener')
-  if (confused && words > confusedCap(rules)) v.push(`the user is confused: at most ${confusedCap(rules)} words`)
   return v
 }
 
@@ -100,7 +97,7 @@ ${question}
   `including the hard cap of ${rules.lineCap} lines and ${rules.wordCap} words.
 ` +
   (confused
-    ? `The user's message signals confusion, so make the reply shorter and simpler: at most ${confusedCap(rules)} words, ` +
+    ? `The user's message signals confusion, so make the reply simpler, never longer: ` +
       `the same headings and bullets, Recommend: first with one clear decision, everyday words and no jargon. ` +
       `Keep every recommendation, decision and question to the user. `
     : `Open with the answer to the user's question. Keep every fact in the draft: every number, percentage, ` +
@@ -190,8 +187,8 @@ export function spaceBullets(text: string): string {
 
 /** Sent beside each prompt: a length rule in the user turn is followed more closely than one in the system prompt alone. */
 export const lengthReminder = (rules: Rules, confused = false) =>
-  (confused ? `The user is confused: go shorter and simpler. Put Recommend: first with one clear decision, use everyday words, and use at most ${confusedCap(rules)} words. ` : '') +
-  `Length rule for this reply: at most ${rules.lineCap} lines and ${confused ? confusedCap(rules) : rules.wordCap} words (a table of up to ${rules.tableRows} rows counts as 1 line; code is excluded). ` +
+  (confused ? `The user is confused: use simpler words, never more of them. Put Recommend: first with one clear decision and use everyday words. ` : '') +
+  `Length rule for this reply: at most ${rules.lineCap} lines and ${rules.wordCap} words (a table of up to ${rules.tableRows} rows counts as 1 line; code is excluded). ` +
   'Shape: one answer sentence, then the points grouped under plain headings such as Done:, To do: or Your call:, ' +
   'each heading alone on its line with no bold or stars, and its - bullets of 12 words or fewer under it. ' +
   'Keep every point, with its status, certainty and scope exact. Drop how you got there and restated context.'

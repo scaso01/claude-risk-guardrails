@@ -11,7 +11,7 @@ rows counts as 1 line, a bigger table counts every row; code is excluded. Only "
 - No lead-ins: "Sure", "Certainly", "Great question", "I'd be happy to", "Let me".
 When the user signals confusion ("don't understand", "confused", "confusing",
 "what do you mean", "makes no sense", "I'm lost", "explain again"), drop every table,
-go shorter and simpler: half the word cap, the recommendation first.`
+use simpler words, the same word cap, the recommendation first.`
 
 const r = parseRules(MD)
 
@@ -57,12 +57,12 @@ test('single filler words are deleted in place; phrases and code are left for th
   expect(violations(stripFiller('This is very clear.', r.banned), r)).toEqual([])
 })
 
-test('confusion mode keeps bullets and halves the word cap', () => {
+test('confusion mode keeps bullets and the normal word cap', () => {
   const bullets = 'A mod is code.\n\n- one\n- two'
   expect(violations(bullets, r, true)).toEqual([])
   const long = Array(70).fill('word').join(' ')
   expect(violations(long, r, false).some(x => /confused/.test(x))).toBe(false)
-  expect(violations(long, r, true)).toContain('the user is confused: at most 60 words')
+  expect(violations(long, r, true)).toEqual(violations(long, r, false))
 })
 
 test('finds warning, error and unverified sentences, including ones inside bullets and code', () => {
@@ -185,7 +185,7 @@ test('the length reminder states the caps from the policy file', () => {
   expect(t).toContain('up to 4 rows')
   expect(t).toContain('grouped under plain headings')
   expect(t).toContain('12 words or fewer')
-  expect(lengthReminder(r, true)).toContain('at most 2 lines and 50 words'.replace('2 lines','5 lines'))
+  expect(lengthReminder(r, true)).toContain('at most 5 lines and 100 words')
   expect(lengthReminder(r, true)).toContain('Recommend: first')
 })
 
