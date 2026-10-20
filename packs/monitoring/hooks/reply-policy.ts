@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, droppedFacts, hasList, isNotice, keepProtected, lengthReminder, listItems, lostProtected, ownWords, parseRules, rewritePrompt, tightBullets, stripFiller, userText, violations } from './policy'
+import { countWords, droppedFacts, hasList, isNotice, keepProtected, lengthReminder, listItems, lostProtected, ownWords, parseRules, rewritePrompt, tightBullets, recommendFirst, stripFiller, userText, violations } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string; rewrite: boolean }
 
@@ -77,12 +77,14 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
     const r = await s.result
     const text = buf.filter(c => c.kind === 'text').map(c => c.text).join('')
     let out = text
+    let confusedReply = false
     if (r.toolUses.length === 0 && r.stopReason === 'end_turn' && text) {
       try {
         const file = opts.policyFile ? await expand($, opts.policyFile) : `${$.plugin.root}/policies/terse.md`
         const rules = parseRules(await $.fs.read(file))
         const own = ownWords(lastPrompt)
         const confused = rules.confused.test(own)
+        confusedReply = confused
         const v = rules.lift.test(own) && !confused ? [] : violations(text, rules, confused)
         await countReply($, opts.logDir, v.some(x => / \(cap \d+/.test(x))).catch(() => undefined)
         let draft = text, vv = v
@@ -124,7 +126,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         $.ui.status(`reply-policy off this reply: ${(err as Error).message}`)
       }
     }
-    if (r.toolUses.length === 0 && r.stopReason === 'end_turn') out = tightBullets(out)
+    if (r.toolUses.length === 0 && r.stopReason === 'end_turn') out = tightBullets(confusedReply ? recommendFirst(out) : out)
     if (out === text) { for (const c of buf) yield c; return r }
     let done = false
     for (const c of buf) {

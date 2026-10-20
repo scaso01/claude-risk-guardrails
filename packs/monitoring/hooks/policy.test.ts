@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, tightBullets } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, tightBullets, recommendFirst } from './policy'
 import { replyPolicyOptions } from './reply-policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
@@ -194,4 +194,17 @@ test('reply rewrites stay off unless the option is set to true', () => {
   expect(replyPolicyOptions({ replyPolicy: true }).rewrite).toBe(false)
   expect(replyPolicyOptions({ replyPolicyRewrite: 'true' }).rewrite).toBe(false)
   expect(replyPolicyOptions({ replyPolicyRewrite: true }).rewrite).toBe(true)
+})
+
+test('recommendFirst moves the Recommend group up under the answer, dropping no line', () => {
+  const before = 'It works now.\n\nDone:\n- built it\n- tests pass\n\nTo do:\n- reload\n\nRecommend:\n- reload plugins now'
+  const after = recommendFirst(before)
+  expect(after).toBe('It works now.\n\nRecommend:\n- reload plugins now\n\nDone:\n- built it\n- tests pass\n\nTo do:\n- reload')
+  expect(after.split('\n').filter(l => l.trim()).sort()).toEqual(before.split('\n').filter(l => l.trim()).sort())
+})
+
+test('recommendFirst leaves a reply alone when the group is absent, already first, or there is code', () => {
+  expect(recommendFirst('Answer.\n\nDone:\n- one')).toBe('Answer.\n\nDone:\n- one')
+  expect(recommendFirst('Answer.\n\nRecommend:\n- go\n\nDone:\n- one')).toBe('Answer.\n\nRecommend:\n- go\n\nDone:\n- one')
+  expect(recommendFirst('Answer.\n\n```\nx\n```\n\nRecommend:\n- go')).toBe('Answer.\n\n```\nx\n```\n\nRecommend:\n- go')
 })

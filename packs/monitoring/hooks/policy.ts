@@ -192,6 +192,24 @@ export function tightBullets(text: string): string {
   }).join('')
 }
 
+/** Moves the Recommend: group up to sit right after the opening answer. It only moves lines, never drops one. */
+export function recommendFirst(text: string): string {
+  if (text.includes('```')) return text
+  const lines = text.split('\n')
+  const start = lines.findIndex(l => /^Recommend:\s*$/.test(l.trim()))
+  if (start < 0) return text
+  let end = start + 1
+  while (end < lines.length && !HEADING.test(lines[end]!.trim())) end++
+  const group = lines.slice(start, end)
+  while (group.length && group[group.length - 1]!.trim() === '') group.pop()
+  const rest = [...lines.slice(0, start), ...lines.slice(end)]
+  const firstBreak = rest.findIndex(l => l.trim() === '')
+  if (firstBreak < 0 || firstBreak >= start) return text
+  const out = [...rest.slice(0, firstBreak), '', ...group, ...rest.slice(firstBreak)]
+  while (out.length && out[out.length - 1]!.trim() === '' && lines[lines.length - 1]!.trim() !== '') out.pop()
+  return out.join('\n')
+}
+
 /** Sent beside each prompt: a length rule in the user turn is followed more closely than one in the system prompt alone. */
 export const lengthReminder = (rules: Rules, confused = false) =>
   (confused ? `The user is confused: use simpler words, never more of them. Put the recommendation first with one clear decision and use everyday words. ` : '') +

@@ -7,9 +7,9 @@
 - Rewrites by a second model are now opt-in (`replyPolicyRewrite`, default off). In testing they cut about 7 words a reply and lost 2 of 146 points, so by default the reply is never rewritten.
 - Single filler words are deleted in place instead of rewriting the reply.
 - When rewrites are on, a rewrite that drops a list item, table row or number is discarded, and warning lines are kept word for word.
-- Confusion keeps the normal word cap and the same shape, with simpler words and the recommendation first. Halving the cap doubled missed points in a 5-vs-5 test.
+- Confusion keeps the normal word cap and the same shape, with simpler words. When the user is confused, the `Recommend:` group is moved up under the opening answer; only lines move, none are dropped. Halving the cap doubled missed points in a 5-vs-5 test.
 - Lift and confusion words count only in the user's own words, not in pasted text; agent reports are not treated as the user's question.
-- Bullets are spaced with one blank line: top-level bullets print as `•`, numbered steps as `1\.`.
+- Bullets sit tight under their heading, with one blank line between groups; `*`, `+` and `•` markers print as `-`.
 - Interactive CLI sessions count as human; a daily tally records replies checked and drafts over the cap.
 
 ### inventory-gate
