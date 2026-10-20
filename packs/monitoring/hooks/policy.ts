@@ -165,23 +165,28 @@ const ITEM = /^[ \t]*(?:[-*+•]|\d+[.)])[ \t]+\S/
 const GAP = String.fromCharCode(0x200b)
 
 /**
- * One plain blank line between list items, outside code blocks. The terminal draws a markdown
- * list tight whatever the blank lines, so top-level items become paragraphs: "-" turns into "•"
- * and "1." into "1\." (an escaped number is plain text), and paragraphs keep their gap.
+ * Bullets sit tight under their heading, one per line, with one blank line between groups.
+ * Items stay markdown list items ("- "), which the terminal draws one per line; a "•" line
+ * would be a paragraph, and two of them in a row would print as one line.
  */
 const HEADING = /^[A-Z][A-Za-z ]{0,20}:\s*$/
-export function spaceBullets(text: string): string {
+export function tightBullets(text: string): string {
   return text.split(/(```[\s\S]*?```)/).map((part, i) => {
     if (i % 2) return part
     const out: string[] = []
+    let inList = false
     for (const line of part.split('\n')) {
+      const blank = ['', GAP].includes(line.trim())
       if (ITEM.test(line)) {
-        while (out.length && ['', GAP].includes(out[out.length - 1]!.trim())) out.pop()
-        if (out.length && !HEADING.test(out[out.length - 1]!)) out.push('')
-        out.push(line.replace(/^[-*+][ \t]+/, '• ').replace(/^(\d+)([.)])[ \t]+/, '$1\\$2 '))
+        if (inList) while (out.length && ['', GAP].includes(out[out.length - 1]!.trim())) out.pop()
+        else if (out.length && out[out.length - 1]!.trim() !== '' && !HEADING.test(out[out.length - 1]!)) out.push('')
+        out.push(line.replace(/^([ \t]*)[*+•][ \t]+/, '$1- '))
+        inList = true
         continue
       }
-      out.push(line)
+      if (inList && !blank && !/^[ \t]/.test(line)) { if (out.length && out[out.length - 1] !== '') out.push(''); inList = false }
+      else if (inList && !blank) { out.push(line); continue }
+      out.push(blank ? '' : line)
     }
     return out.join('\n')
   }).join('')

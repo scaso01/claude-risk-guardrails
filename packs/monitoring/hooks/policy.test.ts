@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, spaceBullets } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, tightBullets } from './policy'
 import { replyPolicyOptions } from './reply-policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
@@ -145,17 +145,15 @@ test('lift and confusion words inside pasted text do not count as the ask', () =
   expect(r.lift.test(ownWords(`${p} give me the full picture`))).toBe(true)
 })
 
-test('spaceBullets puts a visible gap between bullets and leaves code and tables alone', () => {
-  const G = '\n\n'
-  const old = ['', '', String.fromCharCode(0x200b), '', ''].join('\n')
-  expect(spaceBullets('Answer.\n- one\n- two\n1. three')).toBe(`Answer.\n\n• one${G}• two${G}1\\. three`)
-  expect(spaceBullets('Answer.\n\n- one\n\n* two\n+ three')).toBe(`Answer.\n\n• one${G}• two${G}• three`)
-  expect(spaceBullets(`Answer.\n\n- one${old}- two`)).toBe(`Answer.\n\n• one${G}• two`)
-  expect(spaceBullets(`Answer.\n\n• one${G}• two`)).toBe(`Answer.\n\n• one${G}• two`)
-  expect(spaceBullets('- one\n  more of one\n- two\n\nAfter.\n2) three\n  - nested')).toBe(`• one\n  more of one${G}• two\n\nAfter.\n\n2\\) three${G}  - nested`)
-  expect(spaceBullets('```\n- a\n- b\n```')).toBe('```\n- a\n- b\n```')
-  expect(spaceBullets('Answer.\n\nDone:\n- one\n- two\n\nTo do:\n- three')).toBe(`Answer.\n\nDone:\n• one${G}• two\n\nTo do:\n• three`)
-  expect(spaceBullets('| a |\n|---|\n| - b |')).toBe('| a |\n|---|\n| - b |')
+test('tightBullets keeps bullets one per line under headings, a blank line between groups', () => {
+  const zw = String.fromCharCode(0x200b)
+  expect(tightBullets('Answer.\n- one\n- two\n1. three')).toBe('Answer.\n\n- one\n- two\n1. three')
+  expect(tightBullets('Answer.\n\n- one\n\n* two\n\n+ three')).toBe('Answer.\n\n- one\n- two\n- three')
+  expect(tightBullets(`Answer.\n\n• one\n\n${zw}\n\n• two`)).toBe('Answer.\n\n- one\n- two')
+  expect(tightBullets('Answer.\n\nDone:\n- one\n\n- two\nTo do:\n- three')).toBe('Answer.\n\nDone:\n- one\n- two\n\nTo do:\n- three')
+  expect(tightBullets('- one\n  more of one\n- two\n\nAfter.')).toBe('- one\n  more of one\n- two\n\nAfter.')
+  expect(tightBullets('```\n- a\n\n- b\n```')).toBe('```\n- a\n\n- b\n```')
+  expect(tightBullets('| a |\n|---|\n| - b |')).toBe('| a |\n|---|\n| - b |')
 })
 
 test('a warning kept in other words is not appended again', () => {
