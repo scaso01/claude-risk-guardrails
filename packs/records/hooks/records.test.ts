@@ -73,6 +73,16 @@ test('clean-tree-on-done catches files changed by a shell command, not ones dirt
   expect(String(r.block)).not.toContain('old.txt')
 })
 
+test('clean-tree-on-done follows a symlinked edit path to the repo it lands in', async ($, on) => {
+  world(on, argv => argv.includes('status') && argv.at(-1) === 'C:/repo/mem/note.md' ? { exitCode: 0, stdout: '?? mem/note.md\n' } : { exitCode: 1, stdout: '' })
+  on('fs.stat', (_$: any, e: any) => ({ value: { realPath: String(e.path).includes('link-mem') ? 'C:/repo/mem/note.md' : e.path } }))
+  on('classic.Stop', () => ({}))
+  await $.tool.call({ tool: 'Write', file_path: 'C:/home/link-mem/note.md', content: 'x' } as any)
+  const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Done.' } as any)
+  expect(String(r.block)).toContain('1 file(s) changed this session')
+  expect(String(r.block)).toContain('C:/repo/mem/note.md')
+})
+
 test('clean-tree-on-done stays quiet when nothing was edited', async ($, on) => {
   const { runs } = world(on)
   on('classic.Stop', () => ({}))

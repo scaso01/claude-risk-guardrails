@@ -28,7 +28,10 @@ async function dirty($: any, cwd: string): Promise<string[] | undefined> {
 
 async function uncommitted($: any, files: string[]): Promise<string[]> {
   const out: string[] = []
-  for (const f of files) {
+  for (const logged of files) {
+    // A symlinked path (e.g. a memory dir linked into a dotfiles repo) only shows in git at its target.
+    const st = await $.fs.stat(logged, { resolve: true }).catch(() => undefined)
+    const f: string = st?.realPath ?? logged
     const r = await $.process.run(['git', '-C', dirOf(f), 'status', '--porcelain', '--', f], { timeoutMs: 15_000 }).catch(() => undefined)
     if (r?.exitCode === 0 && r.stdout.trim()) out.push(f)
   }
