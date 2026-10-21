@@ -8,7 +8,7 @@ export const claimsDone = (reply: string) => DONE.test(reply.slice(-600))
 
 /** True when the reply already tells the user that changes are left uncommitted. */
 export const admitsUncommitted = (reply: string) =>
-  /\b(?:uncommitted|not (?:yet )?committed|(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t) (?:yet )?committed|left (?:them |it )?uncommitted)\b/i.test(reply)
+  /\b(?:uncommitted|not (?:yet )?committed|(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|haven['’]t|hasn['’]t|didn['’]t) (?:yet )?committed|left (?:them |it )?uncommitted)\b/i.test(reply)
 
 /** Paths from `git status --porcelain`, made absolute under the repo root. */
 export function parsePorcelain(root: string, out: string): string[] {

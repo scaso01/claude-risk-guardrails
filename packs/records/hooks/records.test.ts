@@ -277,5 +277,7 @@ test('ledger file names are safe on every platform', () => {
 test('clean-tree-on-done accepts a reply that already says files are uncommitted', () => {
   expect(admitsUncommitted('The settings change isn\'t committed yet.')).toBe(true)
   expect(admitsUncommitted('Two files are still uncommitted.')).toBe(true)
+  expect(admitsUncommitted("I haven't committed them myself.")).toBe(true)
+  expect(admitsUncommitted('Sync committed the earlier version.')).toBe(false)
   expect(admitsUncommitted('All done and pushed.')).toBe(false)
 })
