@@ -23,6 +23,7 @@
 ### Other controls
 - backup-file-guard: copying a live file to a backup name is allowed; editing the backup stays blocked without a sign-off.
 - publish-gate: an approval covers the held push and its repository, not the whole command line.
+- clean-tree-on-done: a file written through a symlink is checked in the repository it lands in, so a linked folder no longer hides it; "haven't committed", "hasn't committed" and "didn't committed" count as telling the user.
 - turn-ledger: one file per process per day, so concurrent sessions never lose a row.
 
 ### Project
