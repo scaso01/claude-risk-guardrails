@@ -14,6 +14,7 @@
 
 ### End-of-reply checks
 - source-fidelity, inventory-gate and clean-tree-on-done no longer send a finished reply back, which made the model write a second, unrequested message. You see a one-line notice instead, and the model gets the finding with your next message.
+- clean-tree-on-done ignores "done" inside quotes, code and hyphenated names such as `clean-tree-on-done`, and flags the same uncommitted files only once.
 
 ### inventory-gate
 - Flags only the writer's own coverage claims ("I reviewed everything"), not descriptions of what code does ("each reply is checked").

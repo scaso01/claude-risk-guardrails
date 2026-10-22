@@ -4,8 +4,9 @@ import type { Carried } from './signoff'
 
 const DONE = /\b(done|finished|complete[d]?|all set|shipped|implemented|fixed|ready to (merge|ship))\b/i
 
-/** True when the end of a reply claims the work is finished. */
-export const claimsDone = (reply: string) => DONE.test(reply.slice(-600))
+/** True when the end of a reply claims the work is finished; quoted text, code and hyphenated names like "clean-tree-on-done" are someone else's words. */
+export const claimsDone = (reply: string) =>
+  DONE.test(reply.slice(-600).replace(/"[^"\n]*"|“[^”\n]*”|`[^`\n]*`|\w+(?:-\w+)+/g, ' '))
 
 /** True when the reply already tells the user that changes are left uncommitted. */
 export const admitsUncommitted = (reply: string) =>
@@ -48,6 +49,7 @@ const key = (p: string) => p.replace(/\\/g, '/').toLowerCase()
 // reply back made the model write a second, unrequested message.
 export function cleanTreeOnDone(on: On, edits: EditLog, carried: Carried) {
   let baseline: Promise<Set<string> | undefined> | undefined
+  let flagged = ''
 
   on('tool.call', { tool: ['Bash', 'PowerShell', 'Edit', 'Write', 'NotebookEdit'] }, async ($, e: any, next) => {
     if (!baseline) {
@@ -70,7 +72,10 @@ export function cleanTreeOnDone(on: On, edits: EditLog, carried: Carried) {
       for (const f of (await dirty($, await $.session.cwd())) ?? []) if (!before.has(key(f))) found.set(key(f), f)
     }
     const left = [...found.values()]
-    if (!left.length) return r
+    // The same uncommitted files are flagged once, not on every later reply.
+    const sig = left.map(key).sort().join('|')
+    if (!left.length || sig === flagged) return r
+    flagged = sig
     const more = left.length > 10 ? ` and ${left.length - 10} more` : ''
     $.ui.log(`Uncommitted (${left.length}): ${left.slice(0, 10).join(', ')}${more}`)
     carried.add(`[clean-tree-on-done] Your last reply said the work was finished, but ${left.length} file(s) changed this session are not committed: ` +

@@ -43,6 +43,10 @@ test('done-claim detection reads only the end of the reply', () => {
   expect(claimsDone('Fixed the regex.')).toBe(true)
   expect(claimsDone('Here is the plan for the next step.')).toBe(false)
   expect(claimsDone('done ' + 'x'.repeat(700))).toBe(false)
+  expect(claimsDone('It quoted "[clean-tree-on-done] Your last reply said the work was finished".')).toBe(false)
+  expect(claimsDone('The clean-tree-on-done check fired.')).toBe(false)
+  expect(claimsDone('Use `done` as the label.')).toBe(false)
+  expect(claimsDone('Both fixes are done.')).toBe(true)
 })
 
 test('clean-tree-on-done flags uncommitted session edits without sending the reply back', async ($, on) => {
@@ -61,6 +65,7 @@ test('clean-tree-on-done flags uncommitted session edits without sending the rep
   await $.prompt.submit({ text: 'ok', origin: { kind: 'composer' } } as any)
   expect(ctx.length).toBe(1)
   await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Next I will write tests.' } as any)
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'All done.' } as any)
   expect(w.logs.length).toBe(1)
 })
 
