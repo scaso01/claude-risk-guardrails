@@ -29,7 +29,9 @@ function world(on: any, proc: Proc = () => ({ exitCode: 1, stdout: '' }), files:
   on('fs.exists', (_$: any, e: any) => ({ value: files[key(e.path)] !== undefined || writes[key(e.path)] !== undefined }))
   on('fs.list', () => ({ value: [] }))
   on('tool.call', (_$: any, e: any) => { reached.push(e); return { result: { ok: true } as any, text: 'file text' } })
-  return { reached, runs, writes }
+  const logs: string[] = []
+  on('ui.log', (_$: any, e: any) => { logs.push(String(e.text)); return { value: undefined } })
+  return { reached, runs, writes, logs }
 }
 
 const denyText = (r: any) => String(r?.deny ?? (r?.isError ? r.text : '') ?? '')
@@ -43,23 +45,28 @@ test('done-claim detection reads only the end of the reply', () => {
   expect(claimsDone('done ' + 'x'.repeat(700))).toBe(false)
 })
 
-test('clean-tree-on-done sends a done claim back when session edits are uncommitted', async ($, on) => {
-  world(on, argv => argv.includes('status') ? { exitCode: 0, stdout: argv.at(-1) === 'C:/proj/a.ts' ? ' M a.ts\n' : '' } : { exitCode: 1, stdout: '' })
+test('clean-tree-on-done flags uncommitted session edits without sending the reply back', async ($, on) => {
+  const ctx: string[] = []
+  on('prompt.submit', (_$: any, e: any) => { ctx.push(...(e.context ?? []).map(String)); return { text: e.text } })
+  const w = world(on, argv => argv.includes('status') ? { exitCode: 0, stdout: argv.at(-1) === 'C:/proj/a.ts' ? ' M a.ts\n' : '' } : { exitCode: 1, stdout: '' })
   on('classic.Stop', () => ({}))
   await $.tool.call({ tool: 'Edit', file_path: 'C:/proj/a.ts', old_string: 'a', new_string: 'b' } as any)
   await $.tool.call({ tool: 'Write', file_path: 'C:/proj/b.ts', content: 'x' } as any)
   const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Slice 2 is done.' } as any)
-  expect(String(r.block)).toContain('1 file(s) changed this session are not committed')
-  expect(String(r.block)).toContain('C:/proj/a.ts')
-  const again: any = await $.classic.Stop({ stop_hook_active: true, last_assistant_message: 'Slice 2 is done.' } as any)
-  expect(again.block).toBeUndefined()
-  const plan: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Next I will write tests.' } as any)
-  expect(plan.block).toBeUndefined()
+  expect(r.block).toBeUndefined()
+  expect(w.logs).toEqual(['Uncommitted (1): C:/proj/a.ts'])
+  await $.prompt.submit({ text: 'ok', origin: { kind: 'composer' } } as any)
+  expect(ctx.join(' ')).toContain('[clean-tree-on-done]')
+  expect(ctx.join(' ')).toContain('C:/proj/a.ts')
+  await $.prompt.submit({ text: 'ok', origin: { kind: 'composer' } } as any)
+  expect(ctx.length).toBe(1)
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Next I will write tests.' } as any)
+  expect(w.logs.length).toBe(1)
 })
 
 test('clean-tree-on-done catches files changed by a shell command, not ones dirty before the session', async ($, on) => {
   let changed = false
-  world(on, argv => {
+  const w = world(on, argv => {
     if (argv.includes('rev-parse')) return { exitCode: 0, stdout: 'C:/proj\n' }
     if (argv.includes('status')) return { exitCode: 0, stdout: changed ? ' M old.txt\n M calc.py\n' : ' M old.txt\n' }
     return { exitCode: 1, stdout: '' }
@@ -67,27 +74,24 @@ test('clean-tree-on-done catches files changed by a shell command, not ones dirt
   on('classic.Stop', () => ({}))
   await $.tool.call({ tool: 'Bash', command: "printf 'x' >> calc.py" } as any)
   changed = true
-  const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Done.' } as any)
-  expect(String(r.block)).toContain('1 file(s) changed this session')
-  expect(String(r.block)).toContain('C:/proj/calc.py')
-  expect(String(r.block)).not.toContain('old.txt')
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Done.' } as any)
+  expect(w.logs).toEqual(['Uncommitted (1): C:/proj/calc.py'])
 })
 
 test('clean-tree-on-done follows a symlinked edit path to the repo it lands in', async ($, on) => {
-  world(on, argv => argv.includes('status') && argv.at(-1) === 'C:/repo/mem/note.md' ? { exitCode: 0, stdout: '?? mem/note.md\n' } : { exitCode: 1, stdout: '' })
+  const w = world(on, argv => argv.includes('status') && argv.at(-1) === 'C:/repo/mem/note.md' ? { exitCode: 0, stdout: '?? mem/note.md\n' } : { exitCode: 1, stdout: '' })
   on('fs.stat', (_$: any, e: any) => ({ value: { realPath: String(e.path).includes('link-mem') ? 'C:/repo/mem/note.md' : e.path } }))
   on('classic.Stop', () => ({}))
   await $.tool.call({ tool: 'Write', file_path: 'C:/home/link-mem/note.md', content: 'x' } as any)
-  const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Done.' } as any)
-  expect(String(r.block)).toContain('1 file(s) changed this session')
-  expect(String(r.block)).toContain('C:/repo/mem/note.md')
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Done.' } as any)
+  expect(w.logs).toEqual(['Uncommitted (1): C:/repo/mem/note.md'])
 })
 
 test('clean-tree-on-done stays quiet when nothing was edited', async ($, on) => {
-  const { runs } = world(on)
+  const { runs, logs } = world(on)
   on('classic.Stop', () => ({}))
-  const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Done.' } as any)
-  expect(r.block).toBeUndefined()
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Done.' } as any)
+  expect(logs).toEqual([])
   expect(runs.length).toBe(0)
 })
 

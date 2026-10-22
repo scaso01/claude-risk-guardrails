@@ -54,11 +54,19 @@ export const signOffText = (code: string) =>
   `"approve ${code}" themselves, and then you may run the exact same command once.`
 
 /** Turns the person's own "approve G-1234" into an approval, and tells the model it landed. */
-export function listenForApprovals(on: On, signOff: SignOff, minutes: number, pack: string) {
+/** Notes guardrails leave for the model's next prompt; a plugin gets one prompt hook, so they share it. */
+export class Carried {
+  private notes: string[] = []
+  add(note: string) { this.notes.push(note) }
+  take(): string[] { const n = this.notes; this.notes = []; return n }
+}
+
+export function listenForApprovals(on: On, signOff: SignOff, minutes: number, pack: string, carried = new Carried()) {
   on('prompt.submit', async ($, e, next) => {
+    const notes = carried.take()
     const codes = signOff.approveFrom(e.text, e.origin?.kind ?? '', await $.clock.now(), minutes)
-    if (!codes.length) return next(e)
-    const note = `[${pack}] The user approved ${codes.join(', ')}. The held action may run once, unchanged, within ${minutes} minutes.`
-    return next({ ...e, context: [...(e.context ?? []), note] })
+    if (codes.length) notes.push(`[${pack}] The user approved ${codes.join(', ')}. The held action may run once, unchanged, within ${minutes} minutes.`)
+    if (!notes.length) return next(e)
+    return next({ ...e, context: [...(e.context ?? []), ...notes] })
   }).catch(($, e, next) => next(e))
 }

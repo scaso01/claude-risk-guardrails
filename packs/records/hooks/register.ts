@@ -5,7 +5,7 @@ import { DEFAULT_DOCS, docAgeStamp } from './doc-age-stamp'
 import { heartbeat } from './heartbeat'
 import { neverRevert } from './never-revert'
 import { EditLog, isAbs, join } from './paths'
-import { listenForApprovals, SignOff } from './signoff'
+import { Carried, listenForApprovals, SignOff } from './signoff'
 import { turnLedger } from './turn-ledger'
 
 export const register: Register = (on, options) => {
@@ -20,7 +20,8 @@ export const register: Register = (on, options) => {
     return r
   })
 
-  if (options.cleanTreeOnDone !== false) cleanTreeOnDone(on, edits)
+  const carried = new Carried()
+  if (options.cleanTreeOnDone !== false) cleanTreeOnDone(on, edits, carried)
   if (options.docAgeStamp !== false) {
     const patterns = String(options.docPatterns || DEFAULT_DOCS).split(',').map(s => s.trim()).filter(Boolean)
     docAgeStamp(on, patterns)
@@ -36,5 +37,5 @@ export const register: Register = (on, options) => {
   if (options.turnLedger !== false) turnLedger(on, edits, String(options.ledgerDir || '~/.claude/guardrails/ledger'), options.ledgerPrompts !== false)
 
   heartbeat(on, String(options.heartbeatDir ?? '').trim(), 'guardrails-records')
-  listenForApprovals(on, signOff, minutes, 'guardrails-records')
+  listenForApprovals(on, signOff, minutes, 'guardrails-records', carried)
 }

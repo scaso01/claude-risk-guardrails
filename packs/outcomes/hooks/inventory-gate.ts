@@ -19,5 +19,5 @@ export function uncountedClaim(reply: string): boolean {
 
 export const inventoryNote =
   '[inventory-gate] Your reply claims full coverage ("all", "every", "everything") but never says how many items that was. ' +
-  'Reply with one line only, and do not repeat or replace your answer, which the user already sees: state the count, for example "checked 14 of 14 files", ' +
+  'State the count, for example "checked 14 of 14 files", ' +
   'or, if those words described what something does rather than what you checked, say so in one line.'

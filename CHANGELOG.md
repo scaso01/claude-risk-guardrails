@@ -12,6 +12,9 @@
 - Bullets sit tight under their heading, with one blank line between groups; `*`, `+` and `•` markers print as `-`.
 - Interactive CLI sessions count as human; a daily tally records replies checked and drafts over the cap.
 
+### End-of-reply checks
+- source-fidelity, inventory-gate and clean-tree-on-done no longer send a finished reply back, which made the model write a second, unrequested message. You see a one-line notice instead, and the model gets the finding with your next message.
+
 ### inventory-gate
 - Flags only the writer's own coverage claims ("I reviewed everything"), not descriptions of what code does ("each reply is checked").
 - A send-back asks for one added line with the count, never a reply that replaces the answer.

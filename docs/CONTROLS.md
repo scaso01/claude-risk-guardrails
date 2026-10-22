@@ -9,9 +9,9 @@ judgment, not an official crosswalk.
 
 - **Refuses**: the action does not run. The model sees why, and for irreversible actions
   it gets a one-time code that only you can approve (see [sign-off](#sign-off)).
-- **Sends back**: a finished reply goes back to the model with what's wrong, before you see it.
-  This happens once per reply, so it can't loop.
 - **Notes**: the action runs, and the model gets a note next to the result.
+- **Flags**: after a finished reply, you see a one-line notice, and the model gets the finding
+  with your next message. No second reply is written.
 
 Every option below goes in `settings.json` under `pluginConfigs.<pack>`, or in the `/config`
 menu. Each guardrail also has an on/off switch named after it (`publishGate`,
@@ -58,7 +58,7 @@ for up to three of them is placed next to the report, and a missing commit is ca
 
 **Stops:** figures in a reply that the document you pasted never stated, such as a salary,
 date or percentage.
-**Responds:** sends back. Figures are compared by value, so `$150k` and `150,000` match.
+**Responds:** flags. Figures are compared by value, so `$150k` and `150,000` match.
 Only the figures missing from the source are listed. The source is every prompt and tool result
 this session, and a figure labelled as the writer's own ("my estimate", "80% confident") passes.
 **Maps to:** SR 26-2 V Outcomes Analysis · NIST AI RMF Measure.
@@ -72,7 +72,7 @@ this session, and a figure labelled as the writer's own ("my estimate", "80% con
 ### inventory-gate
 
 **Stops:** "I reviewed everything" with no count.
-**Responds:** sends back. A reply that claims full coverage must say how many items it
+**Responds:** flags. A reply that claims full coverage must say how many items it
 covered out of how many, such as "3 of 3 files".
 **Maps to:** SR 26-2 VI Model Inventory · NIST AI RMF Map.
 
@@ -318,7 +318,7 @@ edit tools and shell writes such as `sed -i` and redirects.
 ### clean-tree-on-done
 
 **Stops:** "done" said while files changed this session are still uncommitted.
-**Responds:** sends back. It counts files changed by edit tools and, by comparing `git status`
+**Responds:** flags, listing the files. It counts files changed by edit tools and, by comparing `git status`
 with a snapshot taken before the session's first change, files changed by shell commands.
 Files that were already dirty before the session are left out.
 **Maps to:** SR 26-2 VI Documentation · NIST AI RMF Manage.

@@ -1,5 +1,6 @@
 import type { On } from 'claude-code'
 import { dirOf, type EditLog } from './paths'
+import type { Carried } from './signoff'
 
 const DONE = /\b(done|finished|complete[d]?|all set|shipped|implemented|fixed|ready to (merge|ship))\b/i
 
@@ -43,7 +44,9 @@ const key = (p: string) => p.replace(/\\/g, '/').toLowerCase()
 // Files changed by Edit and Write are logged directly. Files changed any other way (a shell
 // redirect, a script) are found by comparing git status with a snapshot taken before the
 // session's first change; files already dirty then are left out, as the session didn't make them.
-export function cleanTreeOnDone(on: On, edits: EditLog) {
+// The finding goes to the user as a notice and to the model with the next prompt; sending the
+// reply back made the model write a second, unrequested message.
+export function cleanTreeOnDone(on: On, edits: EditLog, carried: Carried) {
   let baseline: Promise<Set<string> | undefined> | undefined
 
   on('tool.call', { tool: ['Bash', 'PowerShell', 'Edit', 'Write', 'NotebookEdit'] }, async ($, e: any, next) => {
@@ -68,11 +71,10 @@ export function cleanTreeOnDone(on: On, edits: EditLog) {
     }
     const left = [...found.values()]
     if (!left.length) return r
-    const list = left.slice(0, 10).map(f => `- ${f}`).join('\n') + (left.length > 10 ? `\n- and ${left.length - 10} more` : '')
-    return {
-      ...r,
-      block: `[clean-tree-on-done] Your reply says the work is finished, but ${left.length} file(s) changed this session are not committed:\n${list}\n` +
-        'Either commit them, or tell the user plainly that they are left uncommitted and why.',
-    }
+    const more = left.length > 10 ? ` and ${left.length - 10} more` : ''
+    $.ui.log(`Uncommitted (${left.length}): ${left.slice(0, 10).join(', ')}${more}`)
+    carried.add(`[clean-tree-on-done] Your last reply said the work was finished, but ${left.length} file(s) changed this session are not committed: ` +
+      `${left.slice(0, 10).join(', ')}${more}. The user saw a notice listing them. Commit only if they ask; otherwise do not mention it again.`)
+    return r
   })
 }

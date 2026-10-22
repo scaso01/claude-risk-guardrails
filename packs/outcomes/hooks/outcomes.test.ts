@@ -8,11 +8,17 @@ Hybrid, 3 days in office. Requires 10+ years in model validation. Posted 2026-10
 function world(on: any, toolText = 'ok') {
   mock.env(on, { USERPROFILE: 'C:\\Users\\t' })
   mock.clock(on, { now: Date.UTC(2026, 9, 8, 12) })
+  const logs: string[] = []
+  const ctx: string[] = []
   on('fs.write', () => ({ value: undefined }))
-  on('prompt.submit', (_$: any, e: any) => ({ text: e.text }))
+  on('ui.log', (_$: any, e: any) => { logs.push(String(e.text)); return { value: undefined } })
+  on('prompt.submit', (_$: any, e: any) => { ctx.push(...(e.context ?? []).map(String)); return { text: e.text } })
   on('tool.call', () => ({ result: { ok: true } as any, text: toolText }))
   on('classic.Stop', () => ({}))
+  return { logs, ctx }
 }
+
+const nextPrompt = ($: any) => $.prompt.submit({ text: 'ok', origin: { kind: 'composer' } } as any)
 
 // ---- source-fidelity ----
 
@@ -29,25 +35,28 @@ test('source-fidelity matches figures the way people write them', () => {
   expect(pastedSource('x'.repeat(1600), 1500)).toHaveLength(1600)
 })
 
-test('source-fidelity sends back figures the document never stated', async ($, on) => {
-  world(on)
+test('source-fidelity flags figures the document never stated without sending the reply back', async ($, on) => {
+  const w = world(on)
   await $.prompt.submit({ text: `Summarise this role:\n${JD}`, origin: { kind: 'composer' } } as any)
   const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Pays $180k-$220k plus a 25% bonus.' } as any)
-  expect(String(r.block)).toContain('[source-fidelity]')
-  expect(String(r.block)).toContain('25%')
-  const again: any = await $.classic.Stop({ stop_hook_active: true, last_assistant_message: 'Pays $180k-$220k plus a 25% bonus.' } as any)
-  expect(again.block).toBeUndefined()
+  expect(r.block).toBeUndefined()
+  expect(w.logs.join('\n')).toContain('25%')
+  await nextPrompt($)
+  expect(w.ctx.join('\n')).toContain('[source-fidelity]')
+  expect(w.ctx.join('\n')).toContain('25%')
+  const n = w.ctx.length
+  await nextPrompt($)
+  expect(w.ctx.length).toBe(n)
 })
 
 test('source-fidelity accepts figures a tool returned and stays out of plain prompts', async ($, on) => {
-  world(on, 'Glassdoor: typical bonus 25%')
+  const w = world(on, 'Glassdoor: typical bonus 25%')
   await $.prompt.submit({ text: `Summarise this role:\n${JD}`, origin: { kind: 'composer' } } as any)
   await $.tool.call({ tool: 'WebFetch', url: 'https://example.com', prompt: 'bonus' } as any)
-  const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Pays $180k-$220k plus a 25% bonus.' } as any)
-  expect(r.block).toBeUndefined()
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Pays $180k-$220k plus a 25% bonus.' } as any)
   await $.prompt.submit({ text: 'what is 2 + 2?', origin: { kind: 'composer' } } as any)
-  const plain: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'It is 4, as of 2026.' } as any)
-  expect(plain.block).toBeUndefined()
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'It is 4, as of 2026.' } as any)
+  expect(w.logs).toEqual([])
 })
 
 test('source-fidelity reads the transcript, so a reload mid-session forgets nothing', async ($, on) => {
@@ -57,14 +66,15 @@ test('source-fidelity reads the transcript, so a reload mid-session forgets noth
     { type: 'assistant', message: { content: [{ type: 'text', text: 'I guessed a 35% bonus' }] } },
     { type: 'user', message: { content: 'Stop hook feedback: [source-fidelity] ... figures: $290' } },
   ].map(l => JSON.stringify(l)).join('\n')
-  world(on)
+  const w = world(on)
   on('fs.read', () => ({ value: lines }))
   await $.prompt.submit({ text: `Draft a note:\n${JD}`, origin: { kind: 'composer' } } as any)
-  const ok: any = await $.classic.Stop({ stop_hook_active: false, transcript_path: 'C:/t.jsonl', last_assistant_message: 'You ran ~1,200 models; your floor is $200k.' } as any)
-  expect(ok.block).toBeUndefined()
+  await $.classic.Stop({ stop_hook_active: false, transcript_path: 'C:/t.jsonl', last_assistant_message: 'You ran ~1,200 models; your floor is $200k.' } as any)
+  expect(w.logs).toEqual([])
   const bad: any = await $.classic.Stop({ stop_hook_active: false, transcript_path: 'C:/t.jsonl', last_assistant_message: 'Expect a 35% bonus and $290k base.' } as any)
-  expect(String(bad.block)).toContain('35%')
-  expect(String(bad.block)).toContain('$290k')
+  expect(bad.block).toBeUndefined()
+  expect(w.logs.join('\n')).toContain('35%')
+  expect(w.logs.join('\n')).toContain('$290k')
 })
 
 // ---- inventory-gate ----
@@ -83,12 +93,16 @@ test('inventory-gate wants a count behind a full-coverage claim', () => {
   expect(uncountedClaim('It checks each final reply before you see it.')).toBe(false)
 })
 
-test('inventory-gate sends back an uncounted claim', { options: { sourceFidelity: false } }, async ($, on) => {
-  world(on)
+test('inventory-gate flags an uncounted claim without sending the reply back', { options: { sourceFidelity: false } }, async ($, on) => {
+  const w = world(on)
   const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Audited every repo; all clean.' } as any)
-  expect(String(r.block)).toContain('[inventory-gate]')
-  const ok: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Audited 9 of 9 repos; all clean.' } as any)
-  expect(ok.block).toBeUndefined()
+  expect(r.block).toBeUndefined()
+  expect(w.logs.join('\n')).toContain('without a count')
+  await nextPrompt($)
+  expect(w.ctx.join('\n')).toContain('[inventory-gate]')
+  w.logs.length = 0
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Audited 9 of 9 repos; all clean.' } as any)
+  expect(w.logs).toEqual([])
 })
 
 test('source-fidelity lets through a figure labelled as the writer\'s own', () => {
@@ -106,13 +120,13 @@ test('source-fidelity lets through a figure labelled as the writer\'s own', () =
 })
 
 test('source-fidelity remembers figures from earlier turns', async ($, on) => {
-  world(on, 'Business plan: about $20K in the first half of 2027')
+  const w = world(on, 'Business plan: about $20K in the first half of 2027')
   await $.prompt.submit({ text: 'read my plan', origin: { kind: 'composer' } } as any)
   await $.tool.call({ tool: 'Read', file_path: 'plan.md' } as any)
   await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Read it.' } as any)
   await $.prompt.submit({ text: `Compare this role to my plan:\n${JD}`, origin: { kind: 'composer' } } as any)
-  const r: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'The role pays $180k; your plan expects $20K in 2027.' } as any)
-  expect(r.block).toBeUndefined()
-  const made: any = await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Your plan expects $35K.' } as any)
-  expect(String(made.block)).toContain('$35K')
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'The role pays $180k; your plan expects $20K in 2027.' } as any)
+  expect(w.logs).toEqual([])
+  await $.classic.Stop({ stop_hook_active: false, last_assistant_message: 'Your plan expects $35K.' } as any)
+  expect(w.logs.join('\n')).toContain('$35K')
 })
