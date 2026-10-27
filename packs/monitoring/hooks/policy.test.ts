@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, tightBullets, recommendFirst } from './policy'
+import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts } from './policy'
 import { replyPolicyOptions } from './reply-policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
@@ -183,7 +183,7 @@ test('the length reminder states the caps from the policy file', () => {
   expect(t).toContain('up to 4 rows')
   expect(t).not.toContain('Shape')
   expect(lengthReminder(r, true)).toContain('at most 5 lines and 100 words')
-  expect(lengthReminder(r, true)).toContain('recommendation first')
+  expect(lengthReminder(r, true)).toContain('Outstanding issues: last')
   const withShape = parseRules(MD + ' Shape: one answer sentence, then up to 3 bullets. No paragraph longer than 2 sentences.')
   expect(withShape.shape).toBe('one answer sentence, then up to 3 bullets.')
   expect(lengthReminder(withShape)).toContain('Shape, from the policy file: one answer sentence, then up to 3 bullets.')
@@ -196,15 +196,30 @@ test('reply rewrites stay off unless the option is set to true', () => {
   expect(replyPolicyOptions({ replyPolicyRewrite: true }).rewrite).toBe(true)
 })
 
-test('recommendFirst moves the Recommend group up under the answer, dropping no line', () => {
-  const before = 'It works now.\n\nDone:\n- built it\n- tests pass\n\nTo do:\n- reload\n\nRecommend:\n- reload plugins now'
-  const after = recommendFirst(before)
-  expect(after).toBe('It works now.\n\nRecommend:\n- reload plugins now\n\nDone:\n- built it\n- tests pass\n\nTo do:\n- reload')
+test('issuesLast moves the Outstanding issues group to the end, dropping no line', () => {
+  const before = 'It works now.\n\nOutstanding issues:\n1. Allow it?\n   I would.\n\nDone:\n- built it\n\nTo do:\n- reload'
+  const after = issuesLast(before)
+  expect(after).toBe('It works now.\n\nDone:\n- built it\n\nTo do:\n- reload\n\nOutstanding issues:\n1. Allow it?\n   I would.')
   expect(after.split('\n').filter(l => l.trim()).sort()).toEqual(before.split('\n').filter(l => l.trim()).sort())
 })
 
-test('recommendFirst leaves a reply alone when the group is absent, already first, or there is code', () => {
-  expect(recommendFirst('Answer.\n\nDone:\n- one')).toBe('Answer.\n\nDone:\n- one')
-  expect(recommendFirst('Answer.\n\nRecommend:\n- go\n\nDone:\n- one')).toBe('Answer.\n\nRecommend:\n- go\n\nDone:\n- one')
-  expect(recommendFirst('Answer.\n\n```\nx\n```\n\nRecommend:\n- go')).toBe('Answer.\n\n```\nx\n```\n\nRecommend:\n- go')
+test('issuesLast leaves a reply alone when the group is absent, already last, or there is code', () => {
+  expect(issuesLast('Answer.\n\nDone:\n- one')).toBe('Answer.\n\nDone:\n- one')
+  expect(issuesLast('Answer.\n\nDone:\n- one\n\nOutstanding issues:\n1. Go?')).toBe('Answer.\n\nDone:\n- one\n\nOutstanding issues:\n1. Go?')
+  expect(issuesLast('Answer.\n\nOutstanding issues:\n1. Go?\n\n```\nx\n```')).toBe('Answer.\n\nOutstanding issues:\n1. Go?\n\n```\nx\n```')
+})
+
+test('cutUnprovenFacts drops Facts found lines with no proof and keeps proven ones', () => {
+  const before = 'Pushed.\n\nFacts found:\n- GitHub matches this PC (git status, now).\n- The server will match too.\n\nOutstanding issues: none.'
+  const r = cutUnprovenFacts(before)
+  expect(r.cut).toBe(1)
+  expect(r.text).toBe('Pushed.\n\nFacts found:\n- GitHub matches this PC (git status, now).\n\nOutstanding issues: none.')
+})
+
+test('cutUnprovenFacts removes an emptied heading and leaves other groups and code alone', () => {
+  const before = 'Done.\n\nFacts found:\n- A guess here.\n\nDone:\n- built it\n\n```\nFacts found:\n- code sample\n```'
+  const r = cutUnprovenFacts(before)
+  expect(r.cut).toBe(1)
+  expect(r.text).toBe('Done.\n\nDone:\n- built it\n\n```\nFacts found:\n- code sample\n```')
+  expect(cutUnprovenFacts('Answer.\n\nDone:\n- no proof needed here')).toEqual({ text: 'Answer.\n\nDone:\n- no proof needed here', cut: 0 })
 })

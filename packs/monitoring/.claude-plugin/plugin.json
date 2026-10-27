@@ -74,6 +74,30 @@
       "description": "One JSON file per reply that broke the policy, for measuring violation rates. Empty turns logging off.",
       "default": "~/.claude/guardrails/reply-policy"
     },
+    "proofCheck": {
+      "type": "boolean",
+      "title": "reply-policy: proof check",
+      "description": "Keep a Facts found: line only when its proof holds: a named check re-run and passed, a quoted tool output from this session, the user's own words, or an attached screenshot. Needs reply-policy on.",
+      "default": false
+    },
+    "proofChecksFile": {
+      "type": "string",
+      "title": "reply-policy: proof checks file",
+      "description": "Your allowlist of read-only checks (JSON). See policies/proof-checks.example.json. Empty means check-style proofs always fail.",
+      "default": ""
+    },
+    "proofJudgeModel": {
+      "type": "string",
+      "title": "reply-policy: proof judge model",
+      "description": "A second model that reads each fact next to the output it cites and keeps it only when the output proves it as worded. Empty turns the judge off. A fact the judge cannot rule on is cut.",
+      "default": "sonnet"
+    },
+    "proofCheckAllLines": {
+      "type": "boolean",
+      "title": "reply-policy: proof check every line",
+      "description": "Also check bullets outside Facts found: the judge model picks out the ones that state a fact, and those without a holding proof are cut. Picks and choices are never cut. Off by default: on 30 replies it cut 36 of 75 lines.",
+      "default": false
+    },
     "staleNumberFlag": {
       "type": "boolean",
       "title": "stale-number-flag",

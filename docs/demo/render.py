@@ -5,6 +5,7 @@ result, the guardrail's refusal or note, and the model's reply. Text is the run'
 length (marked with ...) but never reworded. Needs Python Playwright with Chromium installed.
 
     python docs/demo/render.py            # every run, plus overview and social preview
+    python docs/demo/render.py verify-before-answer overview   # one run, plus overview and social preview
 """
 from __future__ import annotations
 
@@ -30,10 +31,12 @@ PACKS = {
     'development': ('Development', 'Look before building, test what changed',
                     ['search-before-build', 'test-reminder', 'precommit-check', 'rules-persist', 'memory-provenance']),
     'outcomes': ('Outcomes', 'Check claims against the evidence',
-                 ['source-fidelity', 'inventory-gate']),
+                 ['source-fidelity', 'inventory-gate', 'verify-before-answer']),
     'challenge': ('Challenge', 'Hold answers to evidence, not pressure',
                   ['pushback-check', 'commit-claim-audit']),
 }
+COUNT = sum(len(gs) for _, _, gs in PACKS.values())
+VERIFY_TOOL = 'mcp__guardrails-outcomes__verify_before_answering'
 
 CSS = """
 :root { --bg:#0b0f14; --card:#11161d; --line:#1f2731; --fg:#d7dde5; --dim:#7d8896; --accent:#d97757;
@@ -128,6 +131,11 @@ def event_html(ev: dict) -> str:
     k = ev['kind']
     if k == 'prompt':
         return f'<div class="ev prompt">{esc(prompt_text(ev["text"]))}</div>'
+    if k == 'tool' and ev['tool'] == VERIFY_TOOL:
+        checks = [c for c in ev['input'].get('check', []) if not c.startswith('Then answer only what')]
+        return box('stop', 'held before you see the reply: the model must check these first', '\n'.join(f'- {c}' for c in checks))
+    if k == 'result' and ev['text'].startswith('Recorded. Run each check now'):
+        return ''
     if k == 'tool':
         return f'<div class="ev tool"><span class="b">●</span> <span class="n">{esc(ev["tool"])}</span><span class="a">({esc(tidy(tool_args(ev["tool"], ev["input"])))})</span></div>'
     if k == 'result':
@@ -155,7 +163,7 @@ def pick(events: list[dict], limit: int = 16) -> list[dict]:
         return events
     keep = set(range(2)) | {len(events) - 1}
     for i, ev in enumerate(events):
-        if TAG.search(ev.get('text', '') or '') or ev['kind'] in ('note', 'stop'):
+        if TAG.search(ev.get('text', '') or '') or ev['kind'] in ('note', 'stop') or ev.get('tool') == VERIFY_TOOL:
             keep |= {i - 1, i, i + 1}
     idx = sorted(i for i in keep if 0 <= i < len(events))[:limit]
     out, last = [], -1
@@ -219,7 +227,7 @@ def overview(social: bool) -> str:
     packs = ''.join(f'<div class="pk"><h2>{esc(t)}</h2><div class="w">{esc(w)}</div><ul>{"".join(f"<li>{esc(g)}</li>" for g in gs)}</ul></div>'
                     for t, w, gs in PACKS.values())
     size = '.ov{width:1280px;height:640px;border-radius:0;border:none;padding:40px 46px}' if social else ''
-    return page(f'<div class="ov"><h1>claude-risk-guardrails <span>&middot; 25 controls</span></h1>'
+    return page(f'<div class="ov"><h1>claude-risk-guardrails <span>&middot; {COUNT} controls</span></h1>'
                 f'<p class="sub">Model risk management for an AI coding agent: Claude Code treated as a vendor model, governed in six control packs.</p>'
                 f'<div class="grid">{packs}</div></div>', OVERVIEW_CSS + size)
 
@@ -254,7 +262,7 @@ def social() -> str:
         '<div class="sp"><div class="l">'
         '<div class="kick">Model risk management for AI agents</div>'
         '<h1>Govern Claude Code like a <span>vendor model.</span></h1>'
-        '<p>25 guardrails that block, verify and record, mapped to SR 26-2 (by analogy) and NIST AI RMF.</p>'
+        f'<p>{COUNT} guardrails that block, verify and record, mapped to SR 26-2 (by analogy) and NIST AI RMF.</p>'
         '<div class="chips"><span>6 packs</span><span>Human sign-off</span><span>Live-tested</span><span>MIT</span></div>'
         '<div class="repo">github.com/scaso01/claude-risk-guardrails</div></div>'
         '<div class="r"><div class="bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span>'
@@ -280,7 +288,7 @@ def main(names: list[str]) -> int:
             pg.set_content(page(card(r)))
             pg.locator('.card').screenshot(path=str(IMAGES / f'{r["name"]}.png'))
             print(f'wrote {r["name"]}.png')
-        if not names:
+        if not names or 'overview' in names:
             pg.set_content(overview(False))
             pg.locator('.ov').screenshot(path=str(IMAGES / 'overview.png'))
             sp = browser.new_page(device_scale_factor=2, viewport={'width': 1280, 'height': 640})

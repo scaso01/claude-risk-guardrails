@@ -1,7 +1,7 @@
 import type { Register } from 'claude-code'
-import { heartbeat } from './heartbeat'
 import { inventoryNote, uncountedClaim } from './inventory-gate'
 import { fidelityNote, pastedSource, transcriptSources, unsupported } from './source-fidelity'
+import { VERIFY_TOOL_DEF, verifyBeforeAnswer, verifyDeny, verifyPrompt, verifyRecord, verifyState } from './verify-before-answer'
 
 const HISTORY_CAP = 2_000_000
 
@@ -9,6 +9,8 @@ export const register: Register = (on, options) => {
   const fidelity = options.sourceFidelity !== false
   const inventory = options.inventoryGate !== false
   const minChars = Math.max(200, Number(options.pasteMinChars ?? 1500) || 1500)
+  const beatDir = String(options.heartbeatDir ?? '').trim()
+  const verify = options.verifyBeforeAnswer !== false ? verifyState() : undefined
   let prompt = ''
   // Findings reach the user as a notice and the model with the next prompt, never as a sent-back reply.
   let pending = ''
@@ -16,21 +18,40 @@ export const register: Register = (on, options) => {
   let history = ''
   const remember = (s: string) => { history = `${history}\n${s}`.slice(-HISTORY_CAP) }
 
+  // One session-start hook per pack: the checker's tool, then this pack's heartbeat.
+  on('session.start', async ($, e, next) => {
+    if (verify) await $.tool.register(VERIFY_TOOL_DEF)
+    const r = await next(e)
+    if (beatDir) {
+      const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
+      await $.fs.write(`${beatDir.replace(/^~(?=[\\/]|$)/, home).replace(/[\\/]+$/, '')}/guardrails-outcomes.txt`, new Date(await $.clock.now()).toISOString())
+    }
+    return r
+  })
+
   on('prompt.submit', async ($, e, next) => {
+    if (verify) verifyPrompt(verify, e.text)
     if (fidelity) { prompt = e.text; remember(e.text) }
     if (!pending) return next(e)
     const note = pending
     pending = ''
     return next({ ...e, context: [...(e.context ?? []), note] })
   })
-  if (fidelity) {
+  if (fidelity || verify) {
     on('tool.call', async ($, e, next) => {
+      const deny = verify && verifyDeny(verify, e)
+      if (deny) return deny
       const r = await next(e)
-      if (typeof r.text === 'string') remember(r.text)
-      else if (r.result !== undefined) remember(JSON.stringify(r.result) ?? '')
+      if (verify) verifyRecord(verify, e, r)
+      if (fidelity) {
+        if (typeof r.text === 'string') remember(r.text)
+        else if (r.result !== undefined) remember(JSON.stringify(r.result) ?? '')
+      }
       return r
     })
   }
+  // verify-before-answer: a final reply is checked before it is shown.
+  if (verify) verifyBeforeAnswer(on, verify)
 
   // One end-of-reply check for the pack; each guardrail adds its note.
   on('classic.Stop', async ($, e: any, next) => {
@@ -59,6 +80,4 @@ export const register: Register = (on, options) => {
     if (notes.length) pending = `About your last reply (the user saw a notice): ${notes.join('\n\n')} Correct it at the start of this reply in one line.`
     return r
   })
-
-  heartbeat(on, String(options.heartbeatDir ?? '').trim(), 'guardrails-outcomes')
 }
