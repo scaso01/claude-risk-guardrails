@@ -270,6 +270,17 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ')
 
 export const quoteIn = (quote: string, texts: string[]) => texts.some(t => norm(t).includes(norm(quote.trim())))
 
+/** The judge reads at most `max` characters, so a quote found further in is shown with its surroundings after the start. */
+export function evidenceView(text: string, quote: string, max = 3000): string {
+  if (text.length <= max) return text
+  const q = quote.trim()
+  const m = q ? new RegExp(q.split(/\s+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'i').exec(text) : null
+  if (!m || m.index + m[0].length <= max) return text.slice(0, max)
+  const head = Math.floor(max / 3)
+  const from = Math.max(head, m.index - head)
+  return `${text.slice(0, head)}\n[...]\n${text.slice(from, Math.min(text.length, m.index + m[0].length + head))}`
+}
+
 /** The quote is long enough and appears in one of the texts. */
 export const quoteFound = (quote: string, texts: string[]) => quote.trim().length >= MIN_QUOTE && quoteIn(quote, texts)
 
@@ -427,6 +438,8 @@ export function openingFixPrompt(opening: string, unsupported: string[]): string
 /** A rewrite that talks about what was or will be checked tells the reader nothing and reads as an answer. */
 export function talksAboutChecking(s: string): boolean {
   return /\b(haven'?t|have not|not yet|couldn'?t|could not|can'?t|cannot|unable to|I'?ll|I will|will|before)\b[^.]*\b(confirm|check|verif|prove|show)/i.test(s)
+    // Live, with every fact cut, two rewrites claimed "no data is available" and "I can't say", both false.
+    || /\bcan'?t say\b|\b(no|not)\b[^.]*\b(evidence|data|output)\b[^.]*\b(available|provided|shown|given)\b/i.test(s)
 }
 
 /** Asks once more for a rewrite the judge rejected, naming the judge's reason. */

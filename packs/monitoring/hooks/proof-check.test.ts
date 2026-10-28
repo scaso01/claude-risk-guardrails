@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { fillArgv, passes, proofOf, quoteFound, toolMatches, factBullets, cutUnprovenFacts, judgePrompt, parseVerdicts, otherBullets, parseClaims, openingOf, parseOpening, openingPrompt, removedNote, talksAboutChecking } from './policy'
+import { fillArgv, passes, proofOf, quoteFound, toolMatches, factBullets, cutUnprovenFacts, judgePrompt, parseVerdicts, otherBullets, parseClaims, openingOf, parseOpening, openingPrompt, removedNote, talksAboutChecking, evidenceView } from './policy'
 import type { CheckFile } from './policy'
 import { verifyFacts } from './reply-policy'
 
@@ -323,5 +323,19 @@ test('a rewrite that talks about checking instead of answering is refused', () =
   expect(talksAboutChecking('Yes, the dotfiles repo is clean and in sync with its remote, but it holds one old stash.')).toBe(false)
   expect(talksAboutChecking('The gateway is running and listening on port 18794. The task itself shows Ready.')).toBe(false)
   expect(talksAboutChecking('Noted: you said Toys R Us is public.')).toBe(false)
+  expect(talksAboutChecking("No command output or view data is available yet, so I can't say how first-day views from YouTube compare for new videos.")).toBe(true)
+  expect(talksAboutChecking("I can't say what that note covers, since no evidence was provided.")).toBe(true)
+  expect(talksAboutChecking('New videos since Oct 23 got at most 24 first-day views, and the newest data is from Oct 26.')).toBe(false)
   expect(talksAboutChecking('Yes, the Watchdog is set to start every 5 minutes, and it also runs once at boot.')).toBe(false)
+})
+
+test('the judge sees a quote found past the cut-off, with the start of the output kept', () => {
+  const text = 'a'.repeat(5000) + ' the Quote   here ' + 'b'.repeat(2000)
+  const v = evidenceView(text, 'the quote here')
+  expect(v).toContain('the Quote   here')
+  expect(v.startsWith('a'.repeat(1000))).toBe(true)
+  expect(v.length).toBeLessThan(3100)
+  expect(evidenceView('short', 'x')).toBe('short')
+  expect(evidenceView(text, 'missing words')).toBe(text.slice(0, 3000))
+  expect(evidenceView(text, '')).toBe(text.slice(0, 3000))
 })

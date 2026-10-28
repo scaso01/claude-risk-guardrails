@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 import { countWords, droppedFacts, hasList, isNotice, keepProtected, lengthReminder, listItems, lostProtected, ownWords, parseRules, rewritePrompt, tightBullets, issuesLast, cutUnprovenFacts, stripFiller, userText, violations } from './policy'
-import { MIN_QUOTE, judgePrompt, parseVerdicts, clockTime, factBullets, fillArgv, passes, proofOf, quoteFound, quoteIn, replaceProof, proofSuffix, rewriteFacts, toolMatches, claimPrompt, parseClaims, otherBullets, rewriteOther, openingOf, openingPrompt, openingFixPrompt, openingRetryPrompt, parseOpening, removedNote, talksAboutChecking } from './policy'
+import { MIN_QUOTE, judgePrompt, parseVerdicts, clockTime, factBullets, fillArgv, passes, proofOf, quoteFound, quoteIn, replaceProof, proofSuffix, rewriteFacts, toolMatches, claimPrompt, parseClaims, otherBullets, rewriteOther, openingOf, openingPrompt, openingFixPrompt, openingRetryPrompt, parseOpening, removedNote, talksAboutChecking, evidenceView } from './policy'
 import type { CheckFile } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string; rewrite: boolean; proofCheck: boolean; proofChecksFile: string; judgeModel: string; allLines: boolean }
@@ -59,7 +59,7 @@ export type Rewrite = { from: string; to: string }
 const withoutProof = (s: string) => { let t = s.trim(); while (proofOf(`- ${t}`)) t = t.replace(/\s*\((?:[^()"]|"[^"]*")+\)\.?\s*$/, ''); return t }
 
 const outputOf = (u: any) => [u.text ?? '', typeof u.result === 'string' ? u.result : JSON.stringify(u.result ?? '')]
-const evidenceOf = (u: any) => `${u.tool} ${JSON.stringify(u.input ?? '').slice(0, 300)}\n${outputOf(u).join('\n').slice(0, 3000)}`
+const evidenceOf = (u: any, quote = '') => `${u.tool} ${JSON.stringify(u.input ?? '').slice(0, 300)}\n${evidenceView(outputOf(u).join('\n'), quote)}`
 
 /**
  * With a judge, the proof only has to point at the right output; the judge then rules on the claim.
@@ -102,11 +102,11 @@ export async function verifyFacts($: any, text: string, checks: CheckFile | null
         if (!toolMatches(p.source, u.tool, u.input)) continue
         named = true
         if (echoes(p.quote, u)) continue
-        if (quoteIn(p.quote, outputOf(u))) { evidence.set(b, evidenceOf(u)); return b }
+        if (quoteIn(p.quote, outputOf(u))) { evidence.set(b, evidenceOf(u, p.quote)); return b }
       }
       // The label is the model's own name for the command ("port check"), so with a judge any output holding the quote will do.
       if (judgeModel && !short) for (const u of calls) {
-        if (!echoes(p.quote, u) && quoteIn(p.quote, outputOf(u))) { evidence.set(b, evidenceOf(u)); return b }
+        if (!echoes(p.quote, u) && quoteIn(p.quote, outputOf(u))) { evidence.set(b, evidenceOf(u, p.quote)); return b }
       }
       if (short && !named) return { cut: `quote shorter than ${MIN_QUOTE} characters` }
       return { cut: named ? 'quote not in that command\'s output' : 'no command matching the proof ran this session' }
@@ -233,6 +233,15 @@ async function logCuts($: any, logDir: string, cuts: Cut[], prompt: string): Pro
   await $.fs.write(path, `${old}${rows}\n`)
 }
 
+/** One JSON line per checked reply, so the real wait the judge adds can be measured. */
+async function logTime($: any, logDir: string, judgeMs: number, facts: number, cut: number): Promise<void> {
+  if (!logDir) return
+  const path = `${await expand($, logDir)}/proof-times.jsonl`
+  let old = ''
+  try { old = await $.fs.read(path) } catch { /* first reply */ }
+  await $.fs.write(path, `${old}${JSON.stringify({ at: new Date(await $.clock.now()).toISOString(), judgeMs, facts, cut })}\n`)
+}
+
 /** Without the file every check-style proof fails, so its fact lines are cut, never trusted. */
 async function loadChecks($: any, file: string): Promise<CheckFile | null> {
   if (!file) return null
@@ -334,6 +343,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           const v = await verifyFacts($, out, await loadChecks($, opts.proofChecksFile), lastPrompt, opts.judgeModel, opts.allLines)
           const rows = [...v.cuts, ...v.rewrites.map(w => ({ line: w.from, reason: `narrowed to: ${w.to}` }))]
           await logCuts($, opts.logDir, rows, lastPrompt).catch((err: Error) => $.ui.status(`proof-check: cut log not written: ${err.message}`))
+          if (opts.judgeModel && factBullets(out).length) await logTime($, opts.logDir, v.judgeMs, factBullets(out).length, v.cuts.length).catch((err: Error) => $.ui.status(`proof-check: time log not written: ${err.message}`))
           facts = v
         } else facts = cutUnprovenFacts(out)
         const secs = 'judgeMs' in facts && facts.judgeMs ? `, judge ${Math.round(facts.judgeMs / 1000)} s` : ''
