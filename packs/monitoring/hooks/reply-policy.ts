@@ -85,6 +85,12 @@ export async function verifyFacts($: any, text: string, checks: CheckFile | null
     const p = proofOf(b)
     if (!p) return { cut: 'no proof in a checkable form' }
     if (p.kind === 'screenshot') return /\[Image #\d+\]/.test(lastPrompt) ? b : { cut: 'no screenshot in the last message' }
+    if (p.kind === 'shotfile') {
+      // The judge reads text only, so it can confirm the picture was opened but never what it shows; the label says so.
+      const name = p.file.replace(/^.*[\\/]/, '').toLowerCase()
+      const opened = (await newestCalls()).some(u => u.tool === 'Read' && String(u.input?.file_path ?? '').replace(/^.*[\\/]/, '').toLowerCase() === name)
+      return opened ? replaceProof(b, `from screenshot: ${p.file.replace(/^.*[\\/]/, '')}`) : { cut: 'that screenshot file was never opened this session' }
+    }
     if (p.kind === 'said') return quoteFound(p.quote, (await messages()).filter(m => m.role === 'user').map(m => m.text)) ? b : { cut: 'the user never wrote that quote' }
     if (p.kind === 'empty') {
       if (!judgeModel) return { cut: 'an empty-output proof needs the judge' }
@@ -120,7 +126,7 @@ export async function verifyFacts($: any, text: string, checks: CheckFile | null
     const r = await $.process.run(argv, { timeoutMs: Math.min(PER_CHECK_MS, left) }).catch((err: Error) => err)
     if (r instanceof Error) return { cut: `check did not run: ${r.message}` }
     if (!passes(def.pass, r, p.args)) return { cut: `check failed: exit ${r.exitCode}, output "${r.stdout.trim().slice(0, 120)}"` }
-    evidence.set(b, `${argv.join(' ')}\nexit ${r.exitCode}\n${r.stdout.slice(0, 3000)}`)
+    evidence.set(b, `${argv.join(' ')}\nexit ${r.exitCode}\n${r.stdout.slice(0, 20000)}`)
     return replaceProof(b, `${[p.id, ...p.args].join(' ')}, ${clockTime(await $.clock.now())}`)
   }
 

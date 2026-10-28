@@ -16,6 +16,7 @@ const MSGS = [
   { role: 'assistant', text: '', toolUses: [
     { tool_use_id: 'a', tool: 'Bash', input: { command: 'git -C dotfiles status' }, text: 'On branch master\nnothing to commit, working tree clean' },
     { tool_use_id: 'b', tool: 'Bash', input: { command: 'echo "pushed to origin ok"' }, text: 'pushed to origin ok' },
+    { tool_use_id: 'c', tool: 'Read', input: { file_path: 'C:/Downloads/08_Polaroid_cards.gif' }, text: '' },
   ] },
 ]
 
@@ -331,11 +332,25 @@ test('a rewrite that talks about checking instead of answering is refused', () =
 
 test('the judge sees a quote found past the cut-off, with the start of the output kept', () => {
   const text = 'a'.repeat(5000) + ' the Quote   here ' + 'b'.repeat(2000)
-  const v = evidenceView(text, 'the quote here')
+  const v = evidenceView(text, 'the quote here', 3000)
   expect(v).toContain('the Quote   here')
   expect(v.startsWith('a'.repeat(1000))).toBe(true)
   expect(v.length).toBeLessThan(3100)
   expect(evidenceView('short', 'x')).toBe('short')
-  expect(evidenceView(text, 'missing words')).toBe(text.slice(0, 3000))
-  expect(evidenceView(text, '')).toBe(text.slice(0, 3000))
+  expect(evidenceView(text, 'missing words', 3000)).toBe(text.slice(0, 3000))
+  expect(evidenceView(text, '', 3000)).toBe(text.slice(0, 3000))
+})
+
+test('a screenshot file counts only if it was opened, and the fact says it came from a screenshot', async () => {
+  const f = fake({})
+  const ok = await verifyFacts(f.$, reply('The card points at Kodak at 2:56 (screenshot: 08_Polaroid_cards.gif)'), CHECKS, '')
+  expect(ok.cut).toBe(0)
+  expect(ok.text).toContain('(from screenshot: 08_Polaroid_cards.gif)')
+  expect((await verifyFacts(f.$, reply('The card points at Sears (screenshot: 09_JCPenney_cards.gif)'), CHECKS, '')).cut).toBe(1)
+})
+
+test('by default the judge sees up to 20,000 characters whole', () => {
+  const text = 'x'.repeat(15000) + ' proof words here'
+  expect(evidenceView(text, 'proof words here')).toBe(text)
+  expect(evidenceView('y'.repeat(25000), 'nothing').length).toBe(20000)
 })

@@ -37,7 +37,7 @@ test('a proof deep in a long output reaches the judge, and each checked reply lo
     mock.env(on, { CLAUDE_CODE_ENTRYPOINT: 'cli' })
     mock.clock(on, { now: Date.UTC(2026, 9, 28, 12) })
     on('ui.status', () => ({ value: undefined }) as any)
-    const long = 'line of filler output\n'.repeat(400) + 'Ready to push: 3 commits ahead of origin\n' + 'tail\n'.repeat(50)
+    const long = 'line of filler output\n'.repeat(1200) + 'Ready to push: 3 commits ahead of origin\n' + 'tail\n'.repeat(50)
     on('session.messages', () => ({ value: [{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'git status' }, text: long }] }] }) as any)
     const asked: string[] = []
     on('model.complete', (_$: any, e: any) => {
@@ -56,7 +56,7 @@ test('a proof deep in a long output reaches the judge, and each checked reply lo
     let shown = ''
     for await (const c of s) if (c.kind === 'text') shown += c.text
     await s.result
-    expect(long.indexOf('3 commits ahead')).toBeGreaterThan(3000)
+    expect(long.indexOf('3 commits ahead')).toBeGreaterThan(20000)
     expect(asked[0]).toContain('Ready to push: 3 commits')
     expect(shown).toContain('three commits ahead (git status')
     const times = [...files.entries()].find(([p]) => p.endsWith('proof-times.jsonl'))

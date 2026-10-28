@@ -244,6 +244,7 @@ export type Proof =
   | { kind: 'quote'; source: string; quote: string }
   | { kind: 'said'; quote: string }
   | { kind: 'screenshot' }
+  | { kind: 'shotfile'; file: string }
   | { kind: 'empty'; source: string }
 
 const BRACKET = /\s*\(((?:[^()"]|"[^"]*")+)\)\.?\s*$/
@@ -258,6 +259,7 @@ export function proofOf(bullet: string): Proof | null {
   if ((m = inner.match(/^check:\s*([\w-]+)((?:\s+\S+)*)$/))) return { kind: 'check', id: m[1]!, args: m[2]!.trim().split(/\s+/).filter(Boolean) }
   if ((m = inner.match(/^you said:\s*"([^"]+)"$/i))) return { kind: 'said', quote: m[1]! }
   if (/^your screenshot$/i.test(inner)) return { kind: 'screenshot' }
+  if ((m = inner.match(/^(?:from )?screenshot:\s*(\S[^"]*\.(?:png|jpe?g|gif|webp|bmp))$/i))) return { kind: 'shotfile', file: m[1]!.trim() }
   if ((m = inner.match(/^([^":]{2,40}):\s*"([^"]+)"$/))) return { kind: 'quote', source: m[1]!.trim(), quote: m[2]! }
   if ((m = inner.match(/^([^":]{2,40}):\s*(?:empty|no) output$/i))) return { kind: 'empty', source: m[1]!.trim() }
   return null
@@ -271,7 +273,7 @@ const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ')
 export const quoteIn = (quote: string, texts: string[]) => texts.some(t => norm(t).includes(norm(quote.trim())))
 
 /** The judge reads at most `max` characters, so a quote found further in is shown with its surroundings after the start. */
-export function evidenceView(text: string, quote: string, max = 3000): string {
+export function evidenceView(text: string, quote: string, max = 20000): string {
   if (text.length <= max) return text
   const q = quote.trim()
   const m = q ? new RegExp(q.split(/\s+/).map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+'), 'i').exec(text) : null
