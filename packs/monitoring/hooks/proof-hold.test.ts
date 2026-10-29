@@ -54,6 +54,7 @@ test('a failed line holds the reply: nothing is shown, and the hold tool hands b
   expect(answer.context[0]).toContain('no command matching the proof ran this session')
   expect(answer.context[0]).toContain('Your draft:\nThe repo is clean.')
   expect(w.status.join(' | ')).toContain('fixing 1 line(s) before you see the reply (round 1)')
+  expect(w.status.join(' | ')).not.toContain('cut 1 line(s)')
   expect([...w.files.keys()].some(p => p.endsWith('proof-holds.jsonl'))).toBe(true)
   expect([...w.files.keys()].some(p => p.endsWith('proof-cuts.jsonl'))).toBe(false)
 })
@@ -77,6 +78,14 @@ test('a line narrowed in the first round is shown narrowed in the second, unjudg
   expect(r.text).toContain('- The repo has nothing to commit (git status: "nothing to commit")')
   expect(r.text).not.toContain('- The repo is clean (')
   expect(w.judged.length).toBe(2)
+})
+
+test('a judge that gives no answer is asked once more before a line is cut', OPTS, async ($, on) => {
+  const w = world(on, [reply(GOOD)], n => n === 1 ? 'I cannot tell from this.' : '1 git status says nothing to commit. TRUE')
+  const r = await step($)
+  expect(w.judged.length).toBe(2)
+  expect(r.text).toContain(GOOD)
+  expect(r.chunks.some(c => c.kind === 'tool')).toBe(false)
 })
 
 test('after two holds the old cut and note are the last resort', OPTS, async ($, on) => {

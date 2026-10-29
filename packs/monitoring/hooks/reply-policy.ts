@@ -159,6 +159,13 @@ export async function verifyFacts($: any, text: string, checks: CheckFile | null
   if (judgeModel && judged.length) {
     const rr = await ask(judgePrompt(judged.map(b => ({ fact: verdict.get(b)!, evidence: evidence.get(b)! })), true))
     const verdicts = rr?.isAnswered ? parseVerdicts(rr.text, judged.length) : []
+    // Live, a judge that gave no answer cut a true line, so the facts it left unruled are asked once more.
+    const unruled = judged.map((_, i) => i).filter(i => !verdicts[i])
+    if (unruled.length) {
+      const ra = await ask(judgePrompt(unruled.map(i => ({ fact: verdict.get(judged[i]!)!, evidence: evidence.get(judged[i]!)! })), true))
+      const again = ra?.isAnswered ? parseVerdicts(ra.text, unruled.length) : []
+      unruled.forEach((i, k) => { if (again[k]) verdicts[i] = again[k] })
+    }
     const retry: { b: string; to: string; why: string }[] = []
     judged.forEach((b, i) => {
       const v = verdicts[i]
@@ -413,7 +420,8 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         } else facts = cutUnprovenFacts(out)
         const secs = 'judgeMs' in facts && facts.judgeMs ? `, judge ${Math.round(facts.judgeMs / 1000)} s` : ''
         const narrowed = 'rewrites' in facts && facts.rewrites.length ? `, narrowed ${facts.rewrites.length}` : ''
-        if (facts.cut || secs) $.ui.status(opts.proofCheck
+        // A held reply already said it is being fixed; its draft's cuts are never shown.
+        if (!held && (facts.cut || secs)) $.ui.status(opts.proofCheck
           ? `proof-check: cut ${facts.cut} line(s) whose proof did not hold${narrowed}${secs}`
           : `reply-policy: cut ${facts.cut} fact line(s) with no proof`)
       } catch (err) {
