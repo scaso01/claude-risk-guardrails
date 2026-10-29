@@ -460,6 +460,25 @@ export function removedNote(text: string, removed: number): string {
   return at < 0 ? `${text.replace(/\s+$/, '')}\n\n${note}` : `${text.slice(0, at)}${note}\n\n${text.slice(at)}`
 }
 
+const HOLD_FIX: [RegExp, string][] = [
+  [/^judge: /, 'The output does not show it as worded. Reword it to say only what the output shows, run a read-only check that settles it, or delete it.'],
+  [/^opening: /, 'Your first sentence claims more than the checked facts show. Rewrite it to state only what they show; an opinion goes in a Pick: line with a % instead.'],
+  [/screenshot/, 'Use (screenshot: file.png) only for a picture file you opened this session, or prove the line another way.'],
+]
+const HOLD_FIX_DEFAULT = 'Run a read-only command now that shows it, and end the line with (command: "6+ characters copied from its output, never from its input"). ' +
+  'If it is your opinion, move it to a Pick: line with a %. If the reply does not need it, delete it.'
+
+/** What the model reads when its reply is held: each failed line, why, and how to fix it, then its own draft. */
+export function holdNotes(draft: string, cuts: { line: string; reason: string }[]): string {
+  const items = cuts.map((c, i) => {
+    const reason = c.reason.replace(/^claim outside Facts found: /, '')
+    const fix = HOLD_FIX.find(([re]) => re.test(c.reason))?.[1] ?? HOLD_FIX_DEFAULT
+    return `${i + 1}. ${c.line}\n   Reason: ${reason}\n   Fix: ${fix}`
+  })
+  return 'A plugin checked your draft reply before the user saw it; the user has not seen it. These lines failed the proof check:\n' +
+    `${items.join('\n')}\n\nWrite the whole reply again with each line fixed. Do not mention this check.\n\nYour draft:\n${draft}`
+}
+
 /** A KEEP that lists an UNSUPPORTED claim contradicts itself, so it comes back as the claims to remove. */
 export function parseOpening(text: string): { keep: true } | { rewrite: string } | { unsupported: string[] } | null {
   const m = text.match(/\bREWRITE:\s*([\s\S]+)$/)

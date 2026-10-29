@@ -1,6 +1,6 @@
 import type { Register } from 'claude-code'
 import { agentHold } from './agent-hold'
-import { replyPolicy, replyPolicyOptions } from './reply-policy'
+import { HOLD_TOOL_DEF, replyPolicy, replyPolicyOptions } from './reply-policy'
 import { staleNumberFlag } from './stale-number-flag'
 
 const PACKS = ['guardrails-approval', 'guardrails-records', 'guardrails-monitoring', 'guardrails-development', 'guardrails-outcomes', 'guardrails-challenge']
@@ -27,6 +27,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     const r = await next(e)
     if (policy) await $.command.register({ name: 'full-reply', description: 'Show the last reply reply-policy shortened, as originally written' })
+    if (policy && options.proofCheck === true && options.proofHold !== false) await $.tool.register(HOLD_TOOL_DEF)
     if (watchdog) await $.command.register({ name: 'guardrails-status', description: 'Show when each guardrail pack last loaded' })
     if (beatDir) {
       const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''

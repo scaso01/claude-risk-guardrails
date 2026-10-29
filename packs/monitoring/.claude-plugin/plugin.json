@@ -98,6 +98,12 @@
       "description": "Also check bullets outside Facts found: the judge model picks out the ones that state a fact, and those without a holding proof are cut. Picks and choices are never cut. Off by default: on 30 replies it cut 36 of 75 lines.",
       "default": false
     },
+    "proofHold": {
+      "type": "boolean",
+      "title": "reply-policy: fix before showing",
+      "description": "When a line fails the proof check, hold the reply and hand it back to the model with each failed line and its reason, up to twice, before the user sees anything. The hold's tool row is hidden. Only lines still failing after that are cut. Needs proof check on.",
+      "default": true
+    },
     "staleNumberFlag": {
       "type": "boolean",
       "title": "stale-number-flag",

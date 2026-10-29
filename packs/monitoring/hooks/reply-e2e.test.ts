@@ -6,7 +6,7 @@ const REPLY = 'Yes, the repo is clean.\n\nFacts found:\n' +
   'Outstanding issues:\n1. Push it?\n   - My pick: yes, 90% sure. Push?'
 
 test('a whole reply goes through the checker and tells the reader what was removed',
-  { options: { replyPolicy: true, proofCheck: true, replyPolicyLogDir: '' } }, async ($, on) => {
+  { options: { replyPolicy: true, proofCheck: true, proofHold: false, replyPolicyLogDir: '' } }, async ($, on) => {
     mock.env(on, { CLAUDE_CODE_ENTRYPOINT: 'cli' })
     mock.clock(on, { now: Date.UTC(2026, 9, 27, 12) })
     const status: string[] = []
