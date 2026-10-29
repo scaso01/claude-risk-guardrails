@@ -452,7 +452,7 @@ export function openingRetryPrompt(rewrite: string, why: string, proven: string[
     `OPENING:\n${rewrite}\n\nPROVEN FACTS:\n${proven.join('\n') || '(none)'}\n\nCOMMAND OUTPUT:\n${evidence.join('\n\n') || '(none)'}`
 }
 
-/** Tells Sean how many lines were removed, just above the questions for him, so he knows to ask. */
+/** Tells the user how many lines were removed, just above the questions for them, so they know to ask. */
 export function removedNote(text: string, removed: number): string {
   if (!removed) return text
   const note = `${removed} line${removed === 1 ? '' : 's'} removed: not proven.`
