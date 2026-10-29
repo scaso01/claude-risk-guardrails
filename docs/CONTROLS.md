@@ -5,13 +5,15 @@ and a screenshot from a live run. The SR 26-2 sections are applied **by analogy*
 footnote 3 puts generative and agentic AI out of scope). Every mapping is the author's
 judgment, not an official crosswalk.
 
-**How a guardrail responds.** There are three kinds of response:
+**How a guardrail responds.** There are four kinds of response:
 
 - **Refuses**: the action does not run. The model sees why, and for irreversible actions
   it gets a one-time code that only you can approve (see [sign-off](#sign-off)).
 - **Notes**: the action runs, and the model gets a note next to the result.
 - **Flags**: after a finished reply, you see a one-line notice, and the model gets the finding
   with your next message. No second reply is written.
+- **Holds**: a finished reply is not shown yet. The model first runs read-only checks on
+  the claims nothing backed, then you see one answer. The held draft is never shown.
 
 Every option below goes in `settings.json` under `pluginConfigs.<pack>`, or in the `/config`
 menu. Each guardrail also has an on/off switch named after it (`publishGate`,
@@ -20,7 +22,7 @@ menu. Each guardrail also has an on/off switch named after it (`publishGate`,
 **Contents**
 
 - [Effective challenge](#effective-challenge-guardrails-challenge): pushback-check, commit-claim-audit
-- [Outcomes analysis](#outcomes-analysis-guardrails-outcomes): source-fidelity, inventory-gate
+- [Outcomes analysis](#outcomes-analysis-guardrails-outcomes): source-fidelity, inventory-gate, verify-before-answer
 - [Ongoing monitoring](#ongoing-monitoring-guardrails-monitoring): agent-hold, reply-policy, controls-watchdog, stale-number-flag
 - [Development and use](#development-and-use-guardrails-development): search-before-build, test-reminder, precommit-check, rules-persist, memory-provenance
 - [Governance and controls](#governance-and-controls-guardrails-approval): publish-gate, protected-process, sensitive-file-guard, message-redact, backup-file-guard, headroom-check, stale-copy-band
@@ -77,6 +79,22 @@ covered out of how many, such as "3 of 3 files".
 **Maps to:** SR 26-2 VI Model Inventory · NIST AI RMF Map.
 
 ![inventory-gate](images/inventory-gate.png)
+
+### verify-before-answer
+
+**Stops:** a final reply that states as fact what no tool result this turn shows.
+**Responds:** holds. Before the reply is shown, a second model (Sonnet) reads it against
+this turn's tool results. Claims it cannot back go back to the model as checks to run, and
+only read-only tools may run for the rest of the turn. A risk the reply flags is held until
+it names a fix and a % confidence that the fix works, with the reason, or the test that would
+give one. After two holds the reply is shown; only side statements the question did not need
+are trimmed, and no answer sentence is cut. Helper agents' replies are not checked. Each reply usually costs
+two to four extra model calls; in testing the median added time was 8.5 seconds on everyday
+questions and 28 seconds on coding tasks.
+Set the `HOLD_LOG` environment variable to a folder to keep each verdict as a file.
+**Maps to:** SR 26-2 V Outcomes Analysis · NIST AI RMF Measure.
+
+![verify-before-answer](images/verify-before-answer.png)
 
 ---
 

@@ -10,12 +10,12 @@ around it: effective challenge, outcomes analysis, ongoing monitoring, documenta
 and a human who signs off before anything consequential happens. This repo applies the
 same discipline to an AI coding agent.
 
-It ships 25 guardrails in six packs. Each one is a Claude Code
+It ships 26 guardrails in six packs. Each one is a Claude Code
 [mod](https://code.claude.com/docs/en/plugins/mods/overview) that runs inside the session.
 It checks the agent's claims against evidence, keeps a human in the loop for irreversible
 actions, and leaves a record a reviewer can follow.
 
-![The 25 guardrails, grouped into six packs](docs/images/overview.png)
+![The 26 guardrails, grouped into six packs](docs/images/overview.png)
 
 ## Why treat Claude as a vendor model
 
@@ -63,7 +63,7 @@ A reply can't add figures the pasted document never stated:
 
 ![clean-tree-on-done sending back a done claim](docs/images/clean-tree-on-done.png)
 
-All 25, each with its screenshot, are in [docs/CONTROLS.md](docs/CONTROLS.md).
+All 26, each with its screenshot, are in [docs/CONTROLS.md](docs/CONTROLS.md).
 
 ## The guardrails
 
@@ -80,6 +80,7 @@ All 25, each with its screenshot, are in [docs/CONTROLS.md](docs/CONTROLS.md).
 |---|---|---|---|
 | `source-fidelity` | Figures in a reply that aren't in the document you pasted, such as a salary, a date or a percentage the source never stated. | V Outcomes Analysis | Measure |
 | `inventory-gate` | "I reviewed everything" with no count. A full-coverage claim must say how many items it covered out of how many. | VI Model Inventory | Map |
+| `verify-before-answer` | A reply stating as fact what nothing this turn checked, such as "the downloads are working" when no tool looked. The reply is held while the model runs read-only checks, so you see one checked answer. | V Outcomes Analysis | Measure |
 
 ### Ongoing monitoring: keep watching after approval
 

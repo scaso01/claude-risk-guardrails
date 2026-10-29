@@ -26,6 +26,12 @@
       "description": "Send back a reply that claims it checked 'everything' without saying how many items, out of how many.",
       "default": true
     },
+    "verifyBeforeAnswer": {
+      "type": "boolean",
+      "title": "verify-before-answer",
+      "description": "Before a final reply is shown, a second model checks it against this turn's tool results; unbacked claims are sent for read-only checks first, so you see one checked answer.",
+      "default": true
+    },
     "heartbeatDir": {
       "type": "string",
       "title": "Heartbeat folder",

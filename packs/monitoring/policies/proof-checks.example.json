@@ -1,0 +1,60 @@
+{
+  "aliases": {
+    "myrepo": "C:/path/to/repo"
+  },
+  "checks": {
+    "git-clean": {
+      "argv": [
+        "git",
+        "-C",
+        "{1}",
+        "status",
+        "--porcelain"
+      ],
+      "pass": "empty"
+    },
+    "task-ran": {
+      "argv": [
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "(Get-ScheduledTaskInfo -TaskName '{1}').LastTaskResult"
+      ],
+      "pass": "equals:0"
+    },
+    "port-owner": {
+      "argv": [
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "Get-NetTCPConnection -State Listen -LocalPort {1} | ForEach-Object { (Get-Process -Id $_.OwningProcess).ProcessName }"
+      ],
+      "pass": "contains:{2}"
+    },
+    "file-has": {
+      "argv": [
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "if (Select-String -LiteralPath '{1}' -SimpleMatch -Pattern '{2}' -Quiet) {'yes'}"
+      ],
+      "pass": "equals:yes"
+    },
+    "container-up": {
+      "argv": [
+        "ssh",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=5",
+        "user@docker-host",
+        "docker",
+        "inspect",
+        "--format",
+        "{{.State.Running}}",
+        "{1}"
+      ],
+      "pass": "equals:true"
+    }
+  }
+}

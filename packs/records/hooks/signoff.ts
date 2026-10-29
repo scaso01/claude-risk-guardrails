@@ -53,7 +53,6 @@ export const signOffText = (code: string) =>
   `This needs a human sign-off. Stop and ask the user. If they agree, they type ` +
   `"approve ${code}" themselves, and then you may run the exact same command once.`
 
-/** Turns the person's own "approve G-1234" into an approval, and tells the model it landed. */
 /** Notes guardrails leave for the model's next prompt; a plugin gets one prompt hook, so they share it. */
 export class Carried {
   private notes: string[] = []
@@ -61,6 +60,7 @@ export class Carried {
   take(): string[] { const n = this.notes; this.notes = []; return n }
 }
 
+/** Turns the person's own "approve G-1234" into an approval, and tells the model it landed. */
 export function listenForApprovals(on: On, signOff: SignOff, minutes: number, pack: string, carried = new Carried()) {
   on('prompt.submit', async ($, e, next) => {
     const notes = carried.take()
