@@ -32,6 +32,12 @@
       "description": "Let the write through and add a warning instead of refusing it.",
       "default": false
     },
+    "searchLogFile": {
+      "type": "string",
+      "title": "search-before-build: log file",
+      "description": "JSONL file that gets one row per block or warning. Empty logs nothing.",
+      "default": ""
+    },
     "testReminder": {
       "type": "boolean",
       "title": "test-reminder",

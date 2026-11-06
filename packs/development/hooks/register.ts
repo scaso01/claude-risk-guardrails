@@ -17,6 +17,7 @@ export const register: Register = (on, options) => {
       researchTools: list(options.researchTools, 'WebSearch, WebFetch, Agent:Explore, Agent:researcher, Agent:scout, Skill:*search*, mcp__*search*, mcp__*fetch*'),
       skipPaths: list(options.searchSkipPaths, '/tmp/, /temp/, /scratchpad/'),
       warnOnly: options.searchWarnOnly === true,
+      logFile: String(options.searchLogFile ?? '').trim(),
     })
   }
   if (options.testReminder !== false) testReminder(on)

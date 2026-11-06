@@ -29,9 +29,10 @@ function world(on: any, opts: { proc?: Proc; files?: Record<string, string>; dir
   })
   on('fs.exists', (_$: any, e: any) => ({ value: files[key(e.path)] !== undefined || (opts.dirs ?? {})[key(e.path)] !== undefined }))
   on('fs.list', (_$: any, e: any) => ({ value: (opts.dirs ?? {})[key(e.path)] ?? [] }))
-  on('fs.write', () => ({ value: undefined }))
+  const writes: { path: string; text: string }[] = []
+  on('fs.write', (_$: any, e: any) => { writes.push({ path: key(e.path), text: e.text }); return { value: undefined } })
   on('tool.call', (_$: any, e: any) => { reached.push(e); return { result: { ok: true } as any, text: 'ok' } })
-  return { reached, runs }
+  return { reached, runs, writes }
 }
 
 const code = (lines: number) => Array.from({ length: lines }, (_, i) => `x${i} = ${i}`).join('\n')
@@ -83,6 +84,18 @@ test('search-before-build lets an overwrite and an opted-out write through', asy
   await $.tool.call({ tool: 'Write', file_path: 'C:/proj/old.py', content: code(20) } as any)
   await $.tool.call({ tool: 'Write', file_path: 'C:/proj/new.py', content: code(20) } as any)
   expect(w.reached.length).toBe(2)
+})
+
+test('search-before-build in warn mode lets the write through and logs it', { options: { searchWarnOnly: true, searchLogFile: '~/gate.jsonl' } }, async ($, on) => {
+  const w = world(on, { messages: [{ role: 'user', text: 'build me a gate', toolUses: [] }] })
+  const r: any = await $.tool.call({ tool: 'Write', file_path: 'C:/proj/gate.py', content: code(20) } as any)
+  expect(r.deny).toBeUndefined()
+  expect(w.reached.length).toBe(1)
+  const log = w.writes.find(x => x.path.endsWith('gate.jsonl'))!
+  expect(log.path).toBe('C:/Users/t/gate.jsonl'.replace(/\\/g, '/'))
+  const row = JSON.parse(log.text.trim())
+  expect(row.verdict).toBe('warn')
+  expect(row.lines).toBe(20)
 })
 
 // ---- test-reminder ----

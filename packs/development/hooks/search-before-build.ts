@@ -101,7 +101,14 @@ async function evidence($: any, allow: string[]): Promise<{ found: boolean; last
   return { found, lastUser }
 }
 
-export type SearchOptions = { researchTools: string[]; skipPaths: string[]; warnOnly: boolean }
+export type SearchOptions = { researchTools: string[]; skipPaths: string[]; warnOnly: boolean; logFile?: string }
+
+async function logBlock($: any, file: string, row: Record<string, unknown>): Promise<void> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME')) ?? ''
+  const path = file.startsWith('~/') ? home + file.slice(1) : file
+  const old = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
+  await $.fs.write(path, old + JSON.stringify(row) + '\n')
+}
 
 export function searchBeforeBuild(on: On, opts: SearchOptions) {
   let blocks = 0
@@ -122,6 +129,11 @@ export function searchBeforeBuild(on: On, opts: SearchOptions) {
     const msg = `[search-before-build] ${opts.warnOnly ? 'Warning' : 'Refused'}: this writes a new ${target.lines}-line code file (${name}) ` +
       'with no research this session. Before building something new, find out whether it already exists: search the web ' +
       'or the docs, or send a research agent, then retry. To skip once, explain why and have the user say "skip the search gate".'
+    if (opts.logFile) {
+      const row = { ts: new Date(await $.clock.now()).toISOString(), session: (await $.session.id().catch(() => '')).slice(0, 8),
+        mode: opts.warnOnly ? 'warn' : 'block', verdict: opts.warnOnly ? 'warn' : 'block', file: target.path, lines: target.lines, blocks_so_far: blocks }
+      await logBlock($, opts.logFile, row).catch(() => undefined)
+    }
     if (opts.warnOnly) {
       const r = await next(e)
       return r.deny !== undefined ? r : { ...r, context: [...(r.context ?? []), msg] }
