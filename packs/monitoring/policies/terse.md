@@ -5,7 +5,7 @@ keep-coding-instructions: true
 ---
 
 Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
-rows counts as 1 line, a bigger table counts every row; code is excluded. Only "report",
+rows counts as 1 line, a bigger table counts every row; code and proof brackets are excluded. Only "report",
 "compare", "deep", "full", or "walk me through" lifts the cap. Answer the exact
 question, then stop. Cut whole topics, never the connective tissue inside one.
 Keep it simple and to the point: plain words, one idea at a time.

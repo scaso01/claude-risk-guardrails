@@ -43,9 +43,10 @@ test('small tables and code blocks count as one line; big tables count every row
 test('flags long, filler-laden, lead-in replies and passes a clean one', () => {
   expect(violations('Sure, this is really simple.', r)).toEqual(['filler: really', 'lead-in opener'])
   expect(violations(Array(8).fill('One line.').join('\n'), r)[0]).toBe('8 lines (cap 6)')
-  expect(violations(Array(130).fill('word').join(' '), r)[0]).toBe('130 words (cap 120, code excluded)')
+  expect(violations(Array(130).fill('word').join(' '), r)[0]).toBe('130 words (cap 120, code and proof brackets excluded)')
   expect(violations('Added the cap.', r)).toEqual([])
   expect(countWords('Run `git status --short` now.')).toBe(3)
+  expect(countWords('- Tests pass (bun: "17 pass, 0 fail").\n- Done (your screenshot)\n- Kept (as noted) here')).toBe(7)
 })
 
 test('single filler words are deleted in place; phrases and code are left for the rewrite', () => {

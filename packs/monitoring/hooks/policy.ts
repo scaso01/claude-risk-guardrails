@@ -52,7 +52,9 @@ export function countLines(text: string, tableRows = Infinity): number {
 }
 
 const prose = (t: string) => t.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/g, 'X')
-export const countWords = (t: string) => (prose(t).match(/[A-Za-z0-9][\w'’.-]*/g) ?? []).length
+// A proof bracket at a line's end, such as (git status: "nothing to commit"), is evidence, not reply text.
+const PROOF_TAIL = /[ \t]*\((?:your screenshot|[\w .'’-]{1,40}: [^()\n]*)\)\.?[ \t]*$/gm
+export const countWords = (t: string) => (prose(t).replace(PROOF_TAIL, '').match(/[A-Za-z0-9][\w'’.-]*/g) ?? []).length
 export const hasList = (t: string) => /^\s*([-*•]|\d+[.)])\s+/m.test(prose(t))
 /** Bullet and numbered items plus table body rows: what a shortened reply must not lose. */
 export const listItems = (t: string) =>
@@ -65,7 +67,7 @@ export function violations(text: string, rules: Rules, confused = false): string
   const v: string[] = []
   const lines = countLines(text, rules.tableRows), words = countWords(text)
   if (lines > rules.lineCap) v.push(`${lines} lines (cap ${rules.lineCap})`)
-  if (words > rules.wordCap) v.push(`${words} words (cap ${rules.wordCap}, code excluded)`)
+  if (words > rules.wordCap) v.push(`${words} words (cap ${rules.wordCap}, code and proof brackets excluded)`)
   const banned = [...new Set((prose(text).match(rules.banned) ?? []).map(w => w.toLowerCase()))]
   if (banned.length) v.push(`filler: ${banned.join(', ')}`)
   if (rules.leadIn.test(prose(text))) v.push('lead-in opener')
@@ -347,7 +349,7 @@ export function issuesLast(text: string): string {
 /** Sent beside each prompt: a length rule in the user turn is followed more closely than one in the system prompt alone. */
 export const lengthReminder = (rules: Rules, confused = false) =>
   (confused ? `The user is confused: use simpler words, never more of them. Keep Outstanding issues: last, with one clear pick per item, and use everyday words. ` : '') +
-  `Length rule for this reply: at most ${rules.lineCap} lines and ${rules.wordCap} words (a table of up to ${rules.tableRows} rows counts as 1 line; code is excluded). ` +
+  `Length rule for this reply: at most ${rules.lineCap} lines and ${rules.wordCap} words (a table of up to ${rules.tableRows} rows counts as 1 line; code and proof brackets are excluded). ` +
   (rules.shape ? `Shape, from the policy file: ${rules.shape} ` : '') +
   'Keep every point, with its status, certainty and scope exact. Drop how you got there and restated context.'
 
