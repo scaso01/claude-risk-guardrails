@@ -1,15 +1,13 @@
 import type { On } from 'claude-code'
-import { countWords, droppedFacts, hasList, isNotice, keepProtected, lengthReminder, listItems, lostProtected, ownWords, parseRules, rewritePrompt, tightBullets, issuesLast, cutUnprovenFacts, stripFiller, userText, violations } from './policy'
+import { countWords, isNotice, keepProtected, lengthReminder, ownWords, parseRules, tightBullets, issuesLast, cutUnprovenFacts, stripFiller, userText, violations } from './policy'
 import { MIN_QUOTE, judgePrompt, parseVerdicts, clockTime, factBullets, fillArgv, passes, proofOf, quoteFound, quoteIn, replaceProof, proofSuffix, rewriteFacts, toolMatches, claimPrompt, parseClaims, otherBullets, rewriteOther, openingOf, openingPrompt, openingFixPrompt, openingRetryPrompt, parseOpening, removedNote, talksAboutChecking, evidenceView, holdNotes } from './policy'
 import type { CheckFile } from './policy'
 
-export type ReplyPolicyOptions = { policyFile: string; model: string; logDir: string; rewrite: boolean; proofCheck: boolean; proofChecksFile: string; judgeModel: string; allLines: boolean; hold: boolean }
+export type ReplyPolicyOptions = { policyFile: string; logDir: string; proofCheck: boolean; proofChecksFile: string; judgeModel: string; allLines: boolean; hold: boolean }
 
 export const replyPolicyOptions = (o: Record<string, unknown>): ReplyPolicyOptions => ({
   policyFile: String(o.replyPolicyFile ?? '').trim(),
-  model: String(o.replyPolicyModel || 'sonnet'),
   logDir: String(o.replyPolicyLogDir ?? '~/.claude/guardrails/reply-policy').trim(),
-  rewrite: o.replyPolicyRewrite === true,
   proofCheck: o.proofCheck === true,
   proofChecksFile: String(o.proofChecksFile ?? '').trim(),
   judgeModel: String(o.proofJudgeModel ?? 'sonnet').trim(),
@@ -361,24 +359,6 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           const stripped = stripFiller(text, rules.banned)
           if (stripped !== text) { draft = stripped; vv = violations(stripped, rules, confused) }
         }
-        const base = draft
-        const items = listItems(text)
-        // A model rewrite is the one step that can lose a point, so it runs only when asked for.
-        for (let attempt = 0; opts.rewrite && attempt < 3 && vv.length; attempt++) {
-          const rr: any = await $.model.complete({ model: opts.model, prompt: rewritePrompt(rules, lastPrompt, draft, vv, confused) })
-          const cand = rr.isAnswered ? rr.text.trim() : ''
-          if (!cand) break
-          if (hasList(text) && !hasList(cand)) { vv = [...v, 'the rewrite dropped the list; keep the main points as a list']; continue }
-          if (!confused && listItems(cand) < items) { vv = [...v, `the rewrite dropped list items; keep all ${items} items and their table rows, shorten the prose instead`]; continue }
-          const lost = confused ? [] : droppedFacts(text, cand)
-          if (lost.length) { vv = [...v, `the rewrite dropped these facts: ${lost.join(', ')}; put every one back and cut words instead`]; continue }
-          const warned = lostProtected(text, cand)
-          if (warned.length) { vv = [...v, `the rewrite dropped these warnings; keep each one: ${warned.join(' | ')}`]; continue }
-          draft = cand
-          vv = violations(cand, rules, confused)
-        }
-        // Substance beats length: a rewrite that lost list items or facts is discarded.
-        if (!confused && (listItems(draft) < items || droppedFacts(text, draft).length)) { draft = base; vv = violations(base, rules, confused) }
         let kept = 0
         if (draft !== text && (vv.length < v.length || countWords(draft) < countWords(text))) {
           ;({ text: out, kept } = keepProtected(text, draft))

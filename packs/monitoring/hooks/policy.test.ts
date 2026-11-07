@@ -1,6 +1,5 @@
 import { test, expect } from 'claude-code/testing'
 import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts } from './policy'
-import { replyPolicyOptions } from './reply-policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -188,13 +187,6 @@ test('the length reminder states the caps from the policy file', () => {
   const withShape = parseRules(MD + ' Shape: one answer sentence, then up to 3 bullets. No paragraph longer than 2 sentences.')
   expect(withShape.shape).toBe('one answer sentence, then up to 3 bullets.')
   expect(lengthReminder(withShape)).toContain('Shape, from the policy file: one answer sentence, then up to 3 bullets.')
-})
-
-test('reply rewrites stay off unless the option is set to true', () => {
-  expect(replyPolicyOptions({}).rewrite).toBe(false)
-  expect(replyPolicyOptions({ replyPolicy: true }).rewrite).toBe(false)
-  expect(replyPolicyOptions({ replyPolicyRewrite: 'true' }).rewrite).toBe(false)
-  expect(replyPolicyOptions({ replyPolicyRewrite: true }).rewrite).toBe(true)
 })
 
 test('issuesLast moves the Outstanding issues group to the end, dropping no line', () => {

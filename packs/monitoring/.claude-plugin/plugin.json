@@ -47,13 +47,7 @@
     "replyPolicy": {
       "type": "boolean",
       "title": "reply-policy",
-      "description": "Check each final reply against a written policy: remind the model of the length rule before it answers, delete filler words, space out bullets, and log each violation. Model rewrites are a separate option.",
-      "default": false
-    },
-    "replyPolicyRewrite": {
-      "type": "boolean",
-      "title": "reply-policy: rewrite long replies",
-      "description": "Have a second model shorten a reply that breaks the policy. Off by default: in testing, rewrites cut about 7 words a reply and lost 2 of 146 points. Warnings are kept word for word; /full-reply shows the original.",
+      "description": "Check each final reply against a written policy: remind the model of the length rule before it answers, delete filler words, space out bullets, and log each violation. It never rewrites a reply with a model.",
       "default": false
     },
     "replyPolicyFile": {
@@ -61,12 +55,6 @@
       "title": "reply-policy: policy file",
       "description": "Your policy file. Empty uses the bundled policies/terse.md. See docs/CONTROLS.md for the phrases it must contain.",
       "default": ""
-    },
-    "replyPolicyModel": {
-      "type": "string",
-      "title": "reply-policy: rewrite model",
-      "description": "The model that rewrites a reply.",
-      "default": "sonnet"
     },
     "replyPolicyLogDir": {
       "type": "string",

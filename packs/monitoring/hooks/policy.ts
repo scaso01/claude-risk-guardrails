@@ -84,39 +84,6 @@ export function stripFiller(text: string, banned: RegExp): string {
   ).join('')
 }
 
-export const rewritePrompt = (rules: Rules, question: string, draft: string, v: string[], confused: boolean) =>
-  `The user's reply policy is defined by this file:
-<policy>
-${rules.text}
-</policy>
-
-` +
-  `The user asked:
-<question>
-${question}
-</question>
-
-` +
-  `The draft reply below breaks that policy (${v.join('; ')}). Rewrite it so it obeys every rule in the policy, ` +
-  `including the hard cap of ${rules.lineCap} lines and ${rules.wordCap} words.
-` +
-  (confused
-    ? `The user's message signals confusion, so make the reply simpler, never longer: ` +
-      `the same headings and bullets, Outstanding issues: last with one clear pick per item, everyday words and no jargon. ` +
-      `Keep every recommendation, decision and question to the user. `
-    : `Open with the answer to the user's question. Keep every fact in the draft: every number, percentage, ` +
-      `confidence figure, name, date, path, ID, link, code span, list item, table row, option, caveat, ` +
-      `recommendation and question to the user. Shorten by cutting words, never facts: drop filler, repetition, ` +
-      `background, narration of steps taken and restated context; merge sentences and use tighter wording. ` +
-      `If every fact cannot fit the cap, keep every fact and go over the cap. ` +
-      `Keep the draft's shape: when it has bullets or a numbered list, the rewrite has them too, one short bullet ` +
-      `per draft bullet; never turn a list into a paragraph. `) +
-  `Keep verbatim anything the policy says never to compress. Output only the rewritten reply.
-
-<draft>
-${draft}
-</draft>`
-
 // Problem reports only. Topic words (secret, security, delete, fails) also appear in plain
 // explanations and caused false keeps, so they are not on this list.
 const PROTECT = /\b(error:|errors? (?:in|on|from|when|while)|failed|warning|unverified|(?:haven['’]t|have not|not|never) (?:been |yet )?verified|irreversible|(?:can['’]t|cannot) be undone|could ?n['’]t|could not|traceback|exception:|exit code \d+|permission denied)/i

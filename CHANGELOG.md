@@ -12,7 +12,8 @@
 
 ### reply-policy
 - Before each answer, the length rule from the policy file (line and word cap, and the reply shape quoted from its `Shape:` sentence) is added to the prompt; a rule stated beside the question is followed more closely than one in the system prompt alone.
-- Rewrites by a second model are now opt-in (`replyPolicyRewrite`, default off). In testing they cut about 7 words a reply and lost 2 of 146 points, so by default the reply is never rewritten.
+- Rewrites by a second model are removed, with the `replyPolicyRewrite` and `replyPolicyModel` options. In testing they cut about 7 words a reply and lost 2 of 146 points; live, most long replies ran 26+ words over.
+- The word count skips proof brackets at line ends, such as (tests: "81 pass").
 - Single filler words are deleted in place instead of rewriting the reply.
 - When rewrites are on, a rewrite that drops a list item, table row or number is discarded, and warning lines are kept word for word.
 - Confusion keeps the normal word cap and the same shape, with simpler words. When the user is confused, the `Recommend:` group is moved up under the opening answer; only lines move, none are dropped. Halving the cap doubled missed points in a 5-vs-5 test.
