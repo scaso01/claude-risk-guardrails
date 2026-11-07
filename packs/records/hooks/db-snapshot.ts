@@ -73,6 +73,8 @@ export function dbSnapshot(on: On, signOff: SignOff, opts: SnapshotOptions) {
       const abs = isAbs(raw) ? raw : join(base, raw)
       if (!(await $.fs.exists(abs))) continue
       const key = norm(abs).toLowerCase()
+      // A snapshot is already the backup; copying it before its own deletion only moved 1.38 GB around.
+      if (key.startsWith(norm(dir).toLowerCase().replace(/\/+$/, '') + '/')) continue
       if (now - (lastTaken.get(key) ?? -Infinity) < opts.everyMinutes * 60_000) continue
       const stem = `${baseOf(abs).replace(/\.(db|sqlite3?)$/i, '')}-${pathTag(abs)}`
       const dst = `${dir}/${await nextSlot($, dir, stem, opts.keep)}`

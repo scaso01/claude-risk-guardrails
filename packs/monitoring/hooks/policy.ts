@@ -55,11 +55,6 @@ const prose = (t: string) => t.replace(/```[\s\S]*?```/g, ' ').replace(/`[^`]*`/
 // A proof bracket at a line's end, such as (git status: "nothing to commit"), is evidence, not reply text.
 const PROOF_TAIL = /[ \t]*\((?:your screenshot|[\w .'’-]{1,40}: [^()\n]*)\)\.?[ \t]*$/gm
 export const countWords = (t: string) => (prose(t).replace(PROOF_TAIL, '').match(/[A-Za-z0-9][\w'’.-]*/g) ?? []).length
-export const hasList = (t: string) => /^\s*([-*•]|\d+[.)])\s+/m.test(prose(t))
-/** Bullet and numbered items plus table body rows: what a shortened reply must not lose. */
-export const listItems = (t: string) =>
-  (prose(t).match(/^\s*([-*•]|\d+[.)])\s+/gm)?.length ?? 0) +
-  (prose(t).match(/^\s*\|(?!\s*:?-{3,})/gm)?.length ?? 0)
 const hasTable = (t: string) => /^\s*\|/m.test(prose(t))
 const paragraphs = (t: string) => prose(t).split(/\n\s*\n/).filter(p => p.trim()).length
 
@@ -322,19 +317,6 @@ export const lengthReminder = (rules: Rules, confused = false) =>
 
 /** Agent reports and harness notices arrive as prompts but are not the user's question. */
 export const isNotice = (t: string) => /^<(?!pasted_content)/.test(t) || /^Mod hot-reloading is off/.test(t)
-
-/** Numbers, links, code and the closing question in `original` that `rewrite` lost. */
-export function droppedFacts(original: string, rewrite: string): string[] {
-  const lost: string[] = []
-  for (const m of original.matchAll(FENCE)) if (!rewrite.includes(m[0].replace(/^```\w*\n?|```$/g, '').trim())) lost.push('a code block')
-  const body = original.replace(FENCE, ' ')
-  const spans = [...body.matchAll(/`([^`]+)`/g)].map(m => m[1]!)
-  const plain = body.replace(/`[^`]*`/g, ' ').replace(/^\s*\d+[.)]\s+/gm, ' ')
-  const tokens = [...plain.matchAll(/https?:\/\/[^\s)>\]]+|\d[\d,.:/-]*\d%?|\d%?/g)].map(m => m[0].replace(/[.,:/-]+$/, ''))
-  for (const f of new Set([...spans, ...tokens])) if (!rewrite.includes(f)) lost.push(f)
-  if (/\?\s*$/.test(original.trim()) && !rewrite.includes('?')) lost.push('the closing question')
-  return lost
-}
 
 /** Asks a second model whether each fact is proven, word for word, by the output it cites. */
 export function judgePrompt(items: { fact: string; evidence: string }[], rewrite = false): string {

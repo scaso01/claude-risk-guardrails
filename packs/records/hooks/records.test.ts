@@ -173,6 +173,15 @@ test('db-snapshot backs up before the write, once per window', async ($, on) => 
   expect(reached.length).toBe(2)
 })
 
+test('db-snapshot never backs up a file inside its own snapshot folder', async ($, on) => {
+  const snap = 'C:\\Users\\t/.claude/guardrails/db-snapshots/app-x.1.db'
+  const { reached, runs } = world(on, () => ({ exitCode: 0, stdout: '' }), { [snap]: 'SQLite' })
+  const r: any = await $.tool.call({ tool: 'Bash', command: `rm "${snap}"` } as any)
+  expect(runs.filter(a => a[0] === 'sqlite3').length).toBe(0)
+  expect(r.context?.join(' ') ?? '').not.toContain('[db-snapshot]')
+  expect(reached.length).toBe(1)
+})
+
 test('db-snapshot holds the write when no backup can be made', async ($, on) => {
   const { reached } = world(on, () => ({ exitCode: 1, stdout: '' }), { 'C:/proj/app.db': 'SQLite' })
   const r: any = await $.tool.call({ tool: 'PowerShell', command: 'sqlite3 app.db "DROP TABLE x"' } as any)

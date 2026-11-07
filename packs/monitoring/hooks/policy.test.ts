@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, hasList, listItems, protectedUnits, keepProtected, stripFiller, userText, droppedFacts, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts } from './policy'
+import { parseRules, violations, countLines, countWords, protectedUnits, keepProtected, stripFiller, userText, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts } from './policy'
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
@@ -110,24 +110,6 @@ test('talking about failure in general is not a problem report', () => {
   expect(protectedUnits('The three riskiest are the ones whose failure would hurt most.')).toEqual([])
 })
 
-test('listItems counts bullets, numbered items and table rows, not code or separators', () => {
-  expect(listItems('Intro.\n\n- a\n- b\n* c\n1. d\n2) e')).toBe(5)
-  expect(listItems('| # | Mod |\n|---|---|\n| 1 | x |\n| 2 | y |')).toBe(3)
-  expect(listItems('```\n- not a list\n```\nplain')).toBe(0)
-  const seven = Array.from({ length: 7 }, (_, i) => `- item ${i + 1}`).join('\n')
-  const five = Array.from({ length: 5 }, (_, i) => `- item ${i + 1}`).join('\n')
-  expect(listItems(five)).toBeLessThan(listItems(seven))
-})
-
-test('droppedFacts catches lost confidence figures, numbers, code and the closing question', () => {
-  const before = 'Move the job to 8 AM (85% confident). It runs `brain_review.py` 3 times. Should I move it?'
-  expect(droppedFacts(before, before)).toEqual([])
-  expect(droppedFacts(before, 'Move the job to 8 AM. It runs the script.')).toEqual(['brain_review.py', '85%', '3', 'the closing question'])
-})
-
-test('droppedFacts ignores numbered-list markers and keeps whole figures', () => {
-  expect(droppedFacts('1. Pays up to $240,000.\n2. Applied 2026-08-11.', '- Pays up to $240,000, applied 2026-08-11.')).toEqual([])
-})
 
 test('isNotice skips agent reports and harness notices but not pasted text', () => {
   expect(isNotice('<task-notification> <task-id>x</task-id>')).toBe(true)
