@@ -415,6 +415,8 @@ const HOLD_FIX: [RegExp, string][] = [
   [/^judge: /, 'The output does not show it as worded. Reword it to say only what the output shows, run a read-only check that settles it, or delete it.'],
   [/^opening: /, 'Your first sentence claims more than the checked facts show. Rewrite it to state only what they show; an opinion goes in a Pick: line with a % instead.'],
   [/screenshot/, 'Use (screenshot: file.png) only for a picture file you opened this session, or prove the line another way.'],
+  [/^unchecked note/, 'If a read-only check could settle it in under a minute, run it now and replace the note with what it showed. ' +
+    'If only the user, a change, a login or hours could settle it, write "No % yet. Test: <the test>." under Outstanding issues. Otherwise leave it as written; it is sent back only once.'],
 ]
 const HOLD_FIX_DEFAULT = 'Run a read-only command now that shows it, and end the line with (command: "6+ characters copied from its output, never from its input"). ' +
   'If it is your opinion, move it to a Pick: line with a %. If the reply does not need it, delete it.'
@@ -470,6 +472,31 @@ export function otherBullets(text: string): string[] {
     }
   })
   return found
+}
+
+const NOT_CHECKED = /\b(?:(?:haven['’]?t|have not|has not|hasn['’]?t|didn['’]?t|did not|not yet|couldn['’]?t|could not|unable to)\b[^.?!]*\b(?:check|confirm|verif|test|look)|unverified|untested|unchecked|not (?:yet )?(?:checked|verified|confirmed|tested))/i
+
+/**
+ * Sentences outside Facts found: and code that admit a check was not done. Quoted text is ignored, and so are
+ * questions and the "No % yet. Test:" form, which already hand the check to the user.
+ */
+export function uncheckedNotes(text: string): string[] {
+  const found: string[] = []
+  text.split(/(```[\s\S]*?```)/).forEach((part, i) => {
+    if (i % 2) return
+    let inFacts = false
+    for (const line of part.split('\n')) {
+      const s = line.trim()
+      if (HEADING.test(s)) { inFacts = s === 'Facts found:'; continue }
+      if (inFacts || !s || /No % yet/i.test(s)) continue
+      for (const sentence of s.replace(/^(?:[-*]|\d+\.)\s+/, '').split(/(?<=[.!?])\s+/)) {
+        const bare = sentence.replace(/"[^"]*"|“[^”]*”|'[^']*'/g, '')
+        if (/\?\s*$/.test(sentence)) continue
+        if (NOT_CHECKED.test(bare)) found.push(sentence.trim())
+      }
+    }
+  })
+  return [...new Set(found)]
 }
 
 /** Replaces or drops (null) those bullets outside Facts found: and outside code. */

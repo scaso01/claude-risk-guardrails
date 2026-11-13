@@ -1,5 +1,34 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, protectedUnits, keepProtected, stripFiller, userText, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts } from './policy'
+import { parseRules, violations, countLines, countWords, protectedUnits, keepProtected, stripFiller, userText, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts, uncheckedNotes, holdNotes } from './policy'
+
+test('a note admitting a missing check is found once, outside facts, quotes, questions and code', () => {
+  const reply = [
+    "It's an idea on your board. I haven't verified the push.",
+    '',
+    'Facts found:',
+    '- Desktop untested (cmd: "exit 0 today")',
+    '',
+    'Done:',
+    "- Added the idea (board: \"flag 'not checked' notes\")",
+    '- Login is untested',
+    '',
+    'Outstanding issues:',
+    '1. Should the idea stay?',
+    "   My pick: keep it, 60% confident. I haven't checked whether notes still get through. Keep it?",
+    '   No % yet. Test: rerun the backtest, which has not been checked.',
+    '   Run the scan to check the count?',
+    '```',
+    'echo not checked',
+    '```',
+  ].join('\n')
+  expect(uncheckedNotes(reply)).toEqual([
+    "I haven't verified the push.",
+    '- Login is untested'.slice(2),
+    "I haven't checked whether notes still get through.",
+  ])
+  expect(uncheckedNotes('The sidebar will show it. I checked the log.')).toEqual([])
+  expect(holdNotes('d', [{ line: 'Login is untested', reason: 'unchecked note: it says something was not checked' }])).toContain('sent back only once')
+})
 import { HTTPS_BEFORE, HTTPS_AFTER } from './fixture-https'
 
 const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4

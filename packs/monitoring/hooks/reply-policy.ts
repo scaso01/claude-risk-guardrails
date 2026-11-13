@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 import { countWords, isNotice, keepProtected, lengthReminder, ownWords, parseRules, tightBullets, issuesLast, cutUnprovenFacts, stripFiller, userText, violations } from './policy'
-import { MIN_QUOTE, judgePrompt, parseVerdicts, clockTime, factBullets, fillArgv, passes, proofOf, quoteFound, quoteIn, replaceProof, proofSuffix, rewriteFacts, toolMatches, claimPrompt, parseClaims, otherBullets, rewriteOther, openingOf, openingPrompt, openingFixPrompt, openingRetryPrompt, parseOpening, removedNote, talksAboutChecking, evidenceView, holdNotes } from './policy'
+import { MIN_QUOTE, judgePrompt, parseVerdicts, clockTime, factBullets, fillArgv, passes, proofOf, quoteFound, quoteIn, replaceProof, proofSuffix, rewriteFacts, toolMatches, claimPrompt, parseClaims, otherBullets, rewriteOther, openingOf, openingPrompt, openingFixPrompt, openingRetryPrompt, parseOpening, removedNote, talksAboutChecking, evidenceView, holdNotes, uncheckedNotes } from './policy'
 import type { CheckFile } from './policy'
 
 export type ReplyPolicyOptions = { policyFile: string; logDir: string; proofCheck: boolean; proofChecksFile: string; judgeModel: string; allLines: boolean; hold: boolean }
@@ -298,6 +298,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
   let notes = ''
   let passed: Passed = new Map()
   let failed = new Set<string>()
+  let asked = new Set<string>()
 
   if (opts.proofCheck && opts.hold) {
     on('tool.call', { tool: HOLD_TOOL } as any, async () => ({ result: `Checked. ${notes}`, context: [notes] }) as any)
@@ -314,7 +315,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
     const t = userText(e.text)
     if (isNotice(t)) return next(e)
     lastPrompt = t
-    holds = 0; holdMs = 0; notes = ''; passed = new Map(); failed = new Set()
+    holds = 0; holdMs = 0; notes = ''; passed = new Map(); failed = new Set(); asked = new Set()
     let rules
     try {
       const file = opts.policyFile ? await expand($, opts.policyFile) : `${$.plugin.root}/policies/terse.md`
@@ -385,12 +386,16 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           if (opts.judgeModel && factBullets(out).length) await logTime($, opts.logDir, v.judgeMs, factBullets(out).length, v.cuts.length).catch((err: Error) => $.ui.status(`proof-check: time log not written: ${err.message}`))
           // A line that failed last round and came back unchanged means the notes did not help, so it is cut instead.
           const repeat = v.cuts.some(c => failed.has(c.line))
-          if (opts.hold && v.cuts.length && holds < MAX_HOLDS && holdMs < HOLD_BUDGET_MS && !repeat) {
+          // A note that admits a missing check is sent back once, never cut: a quick check may settle it, and a doubt must not vanish.
+          const asks = opts.hold ? uncheckedNotes(out).filter(s => !asked.has(s)).map(s => ({ line: s, reason: 'unchecked note: it says something was not checked' })) : []
+          if (opts.hold && (v.cuts.length || asks.length) && holds < MAX_HOLDS && holdMs < HOLD_BUDGET_MS && !repeat) {
             holds++
             failed = new Set(v.cuts.map(c => c.line))
-            notes = holdNotes(out, v.cuts)
-            await logHold($, opts.logDir, holds, v.judgeMs, v.cuts, lastPrompt).catch((err: Error) => $.ui.status(`proof-check: hold log not written: ${err.message}`))
-            $.ui.status(`proof-check: fixing ${v.cuts.length} line(s) before you see the reply (round ${holds})`)
+            for (const a of asks) asked.add(a.line)
+            const back = [...v.cuts, ...asks]
+            notes = holdNotes(out, back)
+            await logHold($, opts.logDir, holds, v.judgeMs, back, lastPrompt).catch((err: Error) => $.ui.status(`proof-check: hold log not written: ${err.message}`))
+            $.ui.status(`proof-check: fixing ${back.length} line(s) before you see the reply (round ${holds})`)
             held = true
           } else {
             const rows = [...v.cuts, ...v.rewrites.map(w => ({ line: w.from, reason: `narrowed to: ${w.to}` }))]

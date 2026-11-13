@@ -108,6 +108,16 @@ test('a failed line that comes back unchanged is cut, not held again', OPTS, asy
   expect(r.text).toContain('1 line removed: not proven.')
 })
 
+test('a note admitting a missing check is sent back once, then shown as written, never cut', OPTS, async ($, on) => {
+  const NOTE = "I haven't checked the stash."
+  const draft = reply(GOOD).replace('The repo is clean.', `The repo is clean. ${NOTE}`)
+  world(on, [draft, draft])
+  expect((await step($)).text).toBe('')
+  const r = await step($)
+  expect(r.text).toContain(NOTE)
+  expect(r.text).not.toContain('removed')
+})
+
 test('a new prompt starts the hold count again', OPTS, async ($, on) => {
   world(on, [reply(GOOD, BAD), reply(GOOD, BAD2), reply(GOOD, BAD), reply(GOOD, BAD2)])
   await step($); await step($)
