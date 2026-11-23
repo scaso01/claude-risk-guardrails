@@ -172,7 +172,7 @@ rows counts as 1 line, a bigger table counts every row; code is excluded. Only "
 When the user signals confusion ("don't understand", "confused", "confusing",
 "what do you mean", "makes no sense", "I'm lost", "explain again"), drop every table,
 use simpler words, the same word cap, the recommendation first.`
-const LEN = { options: { ...OPTS.options, replyPolicyFile: '/policy.md' } }
+const LEN = { options: { ...OPTS.options, replyPolicyFile: '/policy.md', lengthHold: true } }
 const LONG = reply(GOOD).replace('The repo is clean.', `The repo is clean. ${'Every word here counts toward the cap. '.repeat(20)}`)
 // The engine hands fs a platform path ("C:\policy.md" on Windows), so files are found by their tail.
 const lengthWorld = (on: any, drafts: string[]) => {

@@ -95,8 +95,8 @@
     "lengthHold": {
       "type": "boolean",
       "title": "reply-policy: shorten before showing",
-      "description": "When a reply runs over the policy's line or word cap, hold it the same way and hand it back to the model to cut words but keep every fact. Each held draft and the reply shown are logged to length-holds.jsonl for checking. A lift word in the prompt skips it. Needs proof check and fix before showing on.",
-      "default": true
+      "description": "When a reply runs over the policy's line or word cap, hold it the same way and hand it back to the model to cut words but keep every fact. Each held draft and the reply shown are logged to length-holds.jsonl for checking. A lift word in the prompt skips it. Needs proof check and fix before showing on. Off by default: in a live test on 13 held replies, 5 lost a fact and 7 were still over the cap.",
+      "default": false
     },
     "staleNumberFlag": {
       "type": "boolean",

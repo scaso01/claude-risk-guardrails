@@ -13,7 +13,7 @@ export const replyPolicyOptions = (o: Record<string, unknown>): ReplyPolicyOptio
   judgeModel: String(o.proofJudgeModel ?? 'sonnet').trim(),
   allLines: o.proofCheckAllLines === true,
   hold: o.proofHold !== false,
-  lengthHold: o.lengthHold !== false,
+  lengthHold: o.lengthHold === true,
 })
 
 export const HOLD_TOOL_NAME = 'proof_check'
