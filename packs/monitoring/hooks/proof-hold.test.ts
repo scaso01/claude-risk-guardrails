@@ -224,6 +224,53 @@ test('a lift word in the prompt lets a long reply through unheld', LEN, async ($
   expect(dayCount(w)).toEqual({ checked: 1, overCap: 0, shown: 1 })
 })
 
+const JOB = 'Job 01889246 closes 2026-12-29.'
+const LONGF = LONG.replace('The repo is clean.', `The repo is clean. ${JOB}`)
+const SHORTF = reply(GOOD).replace('The repo is clean.', `The repo is clean. ${JOB}`)
+
+test('a shorter rewrite that drops a fact is held again and told what it dropped', LEN, async ($, on) => {
+  const w = lengthWorld(on, [LONGF, reply(GOOD), SHORTF])
+  expect((await step($)).text).toBe('')
+  expect((await step($)).text).toBe('')
+  const answer: any = await $.tool.call({ tool: HOLD_TOOL } as any)
+  expect(answer.context[0]).toContain('Reason: dropped from your first draft: 01889246, 2026-12-29')
+  expect(answer.context[0]).toContain('Put each one back')
+  expect(w.status.join(' | ')).toContain('putting back 2 dropped fact(s) before you see the reply (round 2)')
+  expect((await step($)).text).toContain(JOB)
+  expect(JSON.parse(fileOf(w, 'length-holds.jsonl')!.trim())).toMatchObject({ rounds: 2, dropped: [], fellBack: false, stillOver: false })
+})
+
+test('a fact moved to a file the reply names counts as kept', LEN, async ($, on) => {
+  const note = 'C:\\notes\\job.md'
+  const moved = reply(GOOD).replace('The repo is clean.', `The repo is clean. The job details are in ${note}`)
+  const w = lengthWorld(on, [LONGF, moved])
+  w.files.set(note, 'Job 01889246 closes 2026-12-29.')
+  expect((await step($)).text).toBe('')
+  expect((await step($)).text).toContain(note)
+  expect(JSON.parse(fileOf(w, 'length-holds.jsonl')!.trim())).toMatchObject({ rounds: 1, dropped: [] })
+})
+
+test('a fact still missing after the last round brings back the first draft', LEN, async ($, on) => {
+  const w = lengthWorld(on, [LONGF, reply(GOOD), reply(GOOD)])
+  expect((await step($)).text).toBe('')
+  expect((await step($)).text).toBe('')
+  const shown = await step($)
+  expect(shown.text).toContain(JOB)
+  expect(shown.text).toContain('Every word here')
+  expect(w.status.join(' | ')).toContain('showing the first draft, because the shorter one dropped 2 fact(s)')
+  expect(JSON.parse(fileOf(w, 'length-holds.jsonl')!.trim())).toMatchObject({ rounds: 2, fellBack: true, stillOver: true, dropped: ['01889246', '2026-12-29'] })
+})
+
+test('a question to the user cut from the rewrite is sent back', LEN, async ($, on) => {
+  const w = lengthWorld(on, [LONG, reply(GOOD).replace(' Push?', ''), reply(GOOD)])
+  expect((await step($)).text).toBe('')
+  expect((await step($)).text).toBe('')
+  const answer: any = await $.tool.call({ tool: HOLD_TOOL } as any)
+  expect(answer.context[0]).toContain('dropped from your first draft: 1 question to the user')
+  expect((await step($)).text).toContain('Push?')
+  expect(w.status.join(' | ')).not.toContain('showing the first draft')
+})
+
 test('the notes name a fix for each kind of failure', () => {
   const n = holdNotes('Draft text.', [
     { line: '- a', reason: 'no proof in a checkable form' },

@@ -1,5 +1,5 @@
 import type { On } from 'claude-code'
-import { countWords, isNotice, keepProtected, lengthReminder, ownWords, parseRules, tightBullets, issuesLast, cutUnprovenFacts, stripFiller, userText, violations } from './policy'
+import { countWords, droppedFacts, factTokens, namedPaths, isNotice, keepProtected, lengthReminder, ownWords, parseRules, tightBullets, issuesLast, cutUnprovenFacts, stripFiller, userText, violations } from './policy'
 import { MIN_QUOTE, judgePrompt, parseVerdicts, clockTime, factBullets, fillArgv, passes, proofOf, quoteFound, quoteIn, replaceProof, proofSuffix, rewriteFacts, toolMatches, claimPrompt, parseClaims, otherBullets, rewriteOther, openingOf, openingPrompt, openingFixPrompt, openingRetryPrompt, parseOpening, removedNote, talksAboutChecking, evidenceView, holdNotes, uncheckedNotes } from './policy'
 import type { CheckFile } from './policy'
 
@@ -67,6 +67,16 @@ async function logLengthHold($: any, logDir: string, row: Record<string, unknown
 }
 
 const isCap = (x: string) => / \(cap \d+/.test(x)
+
+/** Facts of the first draft the rewrite lost, after looking in every file the rewrite names; an unreadable file holds nothing. */
+async function lostFacts($: any, draft: string, now: string, excused: Set<string>): Promise<string[]> {
+  const home = await expand($, '~')
+  let files = ''
+  for (const p of namedPaths(now)) {
+    try { files += `\n${await $.fs.read(await expand($, p))}` } catch { /* not a readable file */ }
+  }
+  return droppedFacts(draft, now, files, excused, home)
+}
 
 const PER_CHECK_MS = 10_000
 const PER_REPLY_MS = 20_000
@@ -320,6 +330,8 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
   let counted = false
   let capDraft = ''
   let capWords = 0
+  // Facts in lines sent back for a proof or a note are expected to change, so their loss is not counted.
+  let excused = new Set<string>()
 
   if (opts.proofCheck && opts.hold) {
     on('tool.call', { tool: HOLD_TOOL } as any, async () => ({ result: `Checked. ${notes}`, context: [notes] }) as any)
@@ -337,7 +349,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
     if (isNotice(t)) return next(e)
     lastPrompt = t
     holds = 0; holdMs = 0; notes = ''; passed = new Map(); failed = new Set(); asked = new Set()
-    counted = false; capDraft = ''; capWords = 0
+    counted = false; capDraft = ''; capWords = 0; excused = new Set()
     let rules
     try {
       const file = opts.policyFile ? await expand($, opts.policyFile) : `${$.plugin.root}/policies/terse.md`
@@ -418,16 +430,21 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           const asks = opts.hold ? uncheckedNotes(out).filter(s => !asked.has(s)).map(s => ({ line: s, reason: 'unchecked note: it says something was not checked' })) : []
           // An over-cap draft is sent back to be cut down by the model that wrote it, which knows what each line is for.
           const long = opts.hold && capLeft.length ? [{ line: '(the whole reply)', reason: `over the length cap: ${capLeft.join('; ')}` }] : []
-          if (opts.hold && (v.cuts.length || asks.length || long.length) && holds < MAX_HOLDS && holdMs < HOLD_BUDGET_MS && !repeat) {
+          // A rewrite made to fit the cap is checked against the first draft, so a fact cut to save words goes back.
+          const gone = capDraft ? await lostFacts($, capDraft, out, excused) : []
+          const lost = opts.hold && gone.length ? [{ line: '(the whole reply)', reason: `dropped from your first draft: ${gone.slice(0, 15).join(', ')}${gone.length > 15 ? `, and ${gone.length - 15} more` : ''}` }] : []
+          if (opts.hold && (v.cuts.length || asks.length || long.length || lost.length) && holds < MAX_HOLDS && holdMs < HOLD_BUDGET_MS && !repeat) {
             holds++
             failed = new Set(v.cuts.map(c => c.line))
             for (const a of asks) asked.add(a.line)
-            const back = [...v.cuts, ...asks, ...long]
+            const back = [...v.cuts, ...asks, ...long, ...lost]
+            const home = await expand($, '~')
+            for (const c of [...v.cuts, ...asks]) for (const k of factTokens(c.line, home).keys()) excused.add(k)
             if (long.length && !capDraft) { capDraft = out; capWords = countWords(out) }
             notes = holdNotes(out, back)
             await logHold($, opts.logDir, holds, v.judgeMs, back, lastPrompt).catch((err: Error) => $.ui.status(`proof-check: hold log not written: ${err.message}`))
-            const fixing = back.length - long.length
-            $.ui.status(`reply check: ${[long.length ? `shortening a ${countWords(out)}-word draft` : '', fixing ? `fixing ${fixing} line(s)` : ''].filter(Boolean).join(' and ')} before you see the reply (round ${holds})`)
+            const fixing = back.length - long.length - lost.length
+            $.ui.status(`reply check: ${[long.length ? `shortening a ${countWords(out)}-word draft` : '', lost.length ? `putting back ${gone.length} dropped fact(s)` : '', fixing ? `fixing ${fixing} line(s)` : ''].filter(Boolean).join(' and ')} before you see the reply (round ${holds})`)
             held = true
           } else {
             const rows = [...v.cuts, ...v.rewrites.map(w => ({ line: w.from, reason: `narrowed to: ${w.to}` }))]
@@ -445,6 +462,23 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         facts = cutUnprovenFacts(out)
         $.ui.status(`proof-check failed, kept only bracketed facts: ${(err as Error).message}`)
       }
+      let dropped: string[] = []
+      let fellBack = false
+      if (!held && capDraft) {
+        dropped = await lostFacts($, capDraft, out, excused)
+        if (dropped.length) {
+          // No rounds left and a fact is still missing: the cap gives way, so the first draft is shown with its unproven lines cut.
+          try {
+            facts = opts.proofCheck
+              ? await verifyFacts($, capDraft, await loadChecks($, opts.proofChecksFile), lastPrompt, opts.judgeModel, opts.allLines, passed)
+              : cutUnprovenFacts(capDraft)
+            fellBack = true
+            $.ui.status(`length hold: showing the first draft, because the shorter one dropped ${dropped.length} fact(s)`)
+          } catch (err) {
+            $.ui.status(`length hold: first draft not checked, shorter reply shown: ${(err as Error).message}`)
+          }
+        }
+      }
       if (held) {
         // The draft is never shown; the model gets the notes from the hold tool and writes the reply again.
         for (const c of buf) if (c.kind === 'thinking' || c.kind === 'engine') yield c
@@ -457,7 +491,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
       const stillOver = overNow(out)
       await countReply($, opts.logDir, 'shown', stillOver).catch(() => undefined)
       if (capDraft) {
-        await logLengthHold($, opts.logDir, { prompt: lastPrompt.slice(0, 200), rounds: holds, draftWords: capWords, shownWords: countWords(out), stillOver, draft: capDraft, shown: out })
+        await logLengthHold($, opts.logDir, { prompt: lastPrompt.slice(0, 200), rounds: holds, draftWords: capWords, shownWords: countWords(out), stillOver, dropped, fellBack, draft: capDraft, shown: out })
           .catch((err: Error) => $.ui.status(`length hold: log not written: ${err.message}`))
         capDraft = ''
       }

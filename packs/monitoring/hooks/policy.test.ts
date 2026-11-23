@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { parseRules, violations, countLines, countWords, protectedUnits, keepProtected, stripFiller, userText, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts, uncheckedNotes, holdNotes } from './policy'
+import { parseRules, violations, countLines, countWords, protectedUnits, keepProtected, stripFiller, userText, isNotice, lengthReminder, ownWords, tightBullets, issuesLast, cutUnprovenFacts, uncheckedNotes, holdNotes, factTokens, droppedFacts } from './policy'
 
 test('a note admitting a missing check is found once, outside facts, quotes, questions and code', () => {
   const reply = [
@@ -226,4 +226,18 @@ test('cutUnprovenFacts removes an emptied heading and leaves other groups and co
   expect(r.cut).toBe(1)
   expect(r.text).toBe('Done.\n\nDone:\n- built it\n\n```\nFacts found:\n- code sample\n```')
   expect(cutUnprovenFacts('Answer.\n\nDone:\n- no proof needed here')).toEqual({ text: 'Answer.\n\nDone:\n- no proof needed here', cut: 0 })
+})
+
+test('fact tokens skip proof brackets, list markers and lone digits, and treat the home folder as ~', () => {
+  const t = factTokens('1. Saved to C:\\Users\\sean\\notes\\a.md on 2026-11-23 at 15:17 (git log: "2026-11-23 15:17 fad47e8")\n| C: | 142.2 GB (PowerShell: "free 142.2 GB") |\n2 of 103 ran, 75% sure, code 0x41306, hash fad47e8', 'C:\\Users\\sean')
+  expect([...t.keys()].sort()).toEqual(['0x41306', '103', '142.2', '15:17', '2026-11-23', '75%', 'fad47e8', '~\\notes\\a.md'].sort())
+  expect(factTokens('see ~/notes/a.md', 'C:\\Users\\sean').has('~\\notes\\a.md')).toBe(true)
+})
+
+test('dropped facts are the draft facts missing from the rewrite and from its files, matched as whole tokens', () => {
+  const draft = 'Job 01889246 has 57 applicants, "10% technology and 90% people". Apply? OK?'
+  expect(droppedFacts(draft, draft, '')).toEqual([])
+  expect(droppedFacts(draft, 'Apply?', '')).toEqual(['01889246', '57', '10% technology and 90% people', '1 question to the user'])
+  expect(droppedFacts(draft, 'Apply? OK?', 'job 01889246, 1576 views, "10% technology and 90% people"')).toEqual(['57'])
+  expect(droppedFacts(draft, 'Apply? OK?', '', new Set(['57', '01889246', '10% technology and 90% people']))).toEqual([])
 })

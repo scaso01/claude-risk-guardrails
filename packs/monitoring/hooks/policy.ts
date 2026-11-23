@@ -420,7 +420,58 @@ const HOLD_FIX: [RegExp, string][] = [
   [/^over the length cap/, 'Write it again under the cap. Cut words, never substance: keep every number, name, date, path, caution, choice, ' +
     'confidence % and question. Drop how you got there, background and restated context first. If the facts still cannot fit, ' +
     'put the rest in a file and name its full path in one line.'],
+  [/^dropped from your first draft/, 'Put each one back, or write it to a file and name that file\'s full path in the reply. ' +
+    'A question to the user always stays in the reply.'],
 ]
+
+// Proof brackets anywhere, table cells included: their quotes are evidence that may be re-quoted, not facts for the user.
+const PROOF_ANY = /\((?:your screenshot|screenshot: [^()\n]+|[\w .'’-]{1,40}: "[^\n]*?")\)/g
+const FACT_KINDS: [RegExp, (s: string, home: string) => string][] = [
+  [/"([^"\n]{4,120})"/g, s => s.toLowerCase().replace(/^[\s.,;:!?]+|[\s.,;:!?]+$/g, '')],
+  [/[A-Za-z]:\\[^\s`"'()|,;]+|~[\\/][^\s`"'()|,;]+|\b[\w.-]+\.(?:md|json|jsonl|py|ts|js|mjs|ps1|txt|log|html|xlsx|csv|pdf|db)\b/g,
+    (s, home) => { const p = s.replace(/[.:]+$/, '').replace(/\//g, '\\').toLowerCase(); return home && p.startsWith(home) ? `~${p.slice(home.length)}` : p }],
+  [/\b\d{4}-\d{2}-\d{2}\b/g, s => s],
+  [/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, s => s],
+  [/\b0x[0-9A-Fa-f]+\b/g, s => s.toLowerCase()],
+  [/\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}\b/g, s => s],
+  // A lone digit is left out: "two" and "2" swap freely in a rewrite, and a list marker is not a fact.
+  [/(?<![\w.])\$?\d[\d,]*(?:\.\d+)?%?/g, s => /^\$?\d$/.test(s) ? '' : s.replace(/,/g, '')],
+]
+
+/** The facts a rewrite must keep: quotes, paths, dates, times, codes, hashes and numbers, keyed by a normal form. */
+export function factTokens(text: string, home = ''): Map<string, string> {
+  let t = text.replace(PROOF_ANY, ' ').replace(/^\s*\d+\.\s/gm, ' ')
+  const out = new Map<string, string>()
+  const h = home.replace(/\//g, '\\').replace(/\\+$/, '').toLowerCase()
+  for (const [re, norm] of FACT_KINDS) {
+    t = t.replace(re, (m: string, g1: unknown) => {
+      const s = typeof g1 === 'string' ? g1 : m
+      const k = norm(s, h)
+      if (k) out.set(k, s)
+      return ' '
+    })
+  }
+  return out
+}
+
+export const questionCount = (text: string) => (text.replace(/```[\s\S]*?```/g, ' ').replace(PROOF_ANY, ' ').match(/\?/g) ?? []).length
+
+/** Paths a reply names, for checking that a fact said to be moved to a file is really in it. */
+export const namedPaths = (text: string) => text.replace(PROOF_ANY, ' ').match(/[A-Za-z]:\\[^\s`"'()|,;]+|~[\\/][^\s`"'()|,;]+/g)?.map(p => p.replace(/[.:]+$/, '')) ?? []
+
+/** What the first draft said that the rewrite no longer does: each fact missing from the reply and from the files it names, and a lost question. */
+export function droppedFacts(draft: string, now: string, filesText: string, excused: Set<string> = new Set(), home = ''): string[] {
+  const kept = factTokens(now, home)
+  const files = filesText.toLowerCase()
+  // Whole-token match, so "57" is not found inside "1576".
+  const inFiles = (s: string) => !!s && new RegExp(`(?<![\\w.])${s.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w])`).test(files)
+  const gone = [...factTokens(draft, home)].filter(([k, s]) =>
+    !kept.has(k) && !excused.has(k) && !inFiles(k) && !inFiles(s)).map(([, s]) => s)
+    .sort((a, b) => draft.indexOf(a) - draft.indexOf(b))
+  const q = questionCount(draft) - questionCount(now)
+  if (q > 0) gone.push(`${q} question${q === 1 ? '' : 's'} to the user`)
+  return gone
+}
 const HOLD_FIX_DEFAULT = 'Run a read-only command now that shows it, and end the line with (command: "6+ characters copied from its output, never from its input"). ' +
   'If it is your opinion, move it to a Pick: line with a %. If the reply does not need it, delete it.'
 
