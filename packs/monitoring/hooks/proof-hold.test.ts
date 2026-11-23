@@ -163,6 +163,67 @@ test('the hold row, its result and a group of only it draw nothing; other rows d
   }
 })
 
+const MD = `Answer in the first sentence. Hard cap 6 lines and 120 words — a table of up to 4
+rows counts as 1 line, a bigger table counts every row; code is excluded. Only "report",
+"compare", "deep", "full", or "walk me through" lifts the cap.
+- Delete on sight: just, really, basically, actually, simply, essentially, quite,
+  very, note that, it's worth noting, in order to, at this point.
+- No lead-ins: "Sure", "Certainly", "Great question", "I'd be happy to", "Let me".
+When the user signals confusion ("don't understand", "confused", "confusing",
+"what do you mean", "makes no sense", "I'm lost", "explain again"), drop every table,
+use simpler words, the same word cap, the recommendation first.`
+const LEN = { options: { ...OPTS.options, replyPolicyFile: '/policy.md' } }
+const LONG = reply(GOOD).replace('The repo is clean.', `The repo is clean. ${'Every word here counts toward the cap. '.repeat(20)}`)
+// The engine hands fs a platform path ("C:\policy.md" on Windows), so files are found by their tail.
+const lengthWorld = (on: any, drafts: string[]) => {
+  const w = world(on, drafts)
+  for (const p of ['/policy.md', 'C:\\policy.md']) w.files.set(p, MD)
+  return w
+}
+const fileOf = (w: any, name: string): string | undefined =>
+  [...w.files.entries()].find(([k]: [string, string]) => k.replace(/\\/g, '/').endsWith(`/logs/${name}`))?.[1]
+const dayCount = (w: any) => Object.values(JSON.parse(fileOf(w, 'counts.json')!))[0]
+
+test('an over-cap draft is held and sent back to be cut down; the shown reply is logged next to the draft', LEN, async ($, on) => {
+  const w = lengthWorld(on, [LONG, reply(GOOD)])
+  expect((await step($)).text).toBe('')
+  const answer: any = await $.tool.call({ tool: HOLD_TOOL } as any)
+  expect(answer.context[0]).toContain('(the whole reply)\n   Reason: over the length cap:')
+  expect(answer.context[0]).toContain('keep every number')
+  expect(w.status.join(' | ')).toMatch(/shortening a \d+-word draft before you see the reply \(round 1\)/)
+  const shown = await step($)
+  expect(shown.text).toContain(GOOD)
+  const row = JSON.parse(fileOf(w, 'length-holds.jsonl')!.trim())
+  expect(row.draft).toBe(LONG)
+  expect(row.draftWords).toBeGreaterThan(120)
+  expect(row.stillOver).toBe(false)
+  expect(row.rounds).toBe(1)
+  expect(dayCount(w)).toEqual({ checked: 1, overCap: 1, shown: 1 })
+})
+
+test('a draft still over the cap after two holds is shown, and the log says it is still over', LEN, async ($, on) => {
+  const w = lengthWorld(on, [LONG, LONG, LONG])
+  expect((await step($)).text).toBe('')
+  expect((await step($)).text).toBe('')
+  expect((await step($)).text).toContain('Every word here')
+  expect(JSON.parse(fileOf(w, 'length-holds.jsonl')!.trim())).toMatchObject({ rounds: 2, stillOver: true })
+  expect(dayCount(w)).toEqual({ checked: 1, overCap: 1, shown: 1, shownOver: 1 })
+})
+
+test('with the length hold off, a long reply is shown at once and counted as over', { options: { ...LEN.options, lengthHold: false } }, async ($, on) => {
+  const w = lengthWorld(on, [LONG])
+  expect((await step($)).text).toContain('Every word here')
+  expect(fileOf(w, 'length-holds.jsonl')).toBeUndefined()
+  expect(dayCount(w)).toEqual({ checked: 1, overCap: 1, shown: 1, shownOver: 1 })
+})
+
+test('a lift word in the prompt lets a long reply through unheld', LEN, async ($, on) => {
+  const w = lengthWorld(on, [LONG])
+  await $.prompt.submit({ text: 'Give me the full report', origin: { kind: 'composer' } } as any)
+  expect((await step($)).text).toContain('Every word here')
+  expect(dayCount(w)).toEqual({ checked: 1, overCap: 0, shown: 1 })
+})
+
 test('the notes name a fix for each kind of failure', () => {
   const n = holdNotes('Draft text.', [
     { line: '- a', reason: 'no proof in a checkable form' },

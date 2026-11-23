@@ -417,6 +417,9 @@ const HOLD_FIX: [RegExp, string][] = [
   [/screenshot/, 'Use (screenshot: file.png) only for a picture file you opened this session, or prove the line another way.'],
   [/^unchecked note/, 'If a read-only check could settle it in under a minute, run it now and replace the note with what it showed. ' +
     'If only the user, a change, a login or hours could settle it, write "No % yet. Test: <the test>." under Outstanding issues. Otherwise leave it as written; it is sent back only once.'],
+  [/^over the length cap/, 'Write it again under the cap. Cut words, never substance: keep every number, name, date, path, caution, choice, ' +
+    'confidence % and question. Drop how you got there, background and restated context first. If the facts still cannot fit, ' +
+    'put the rest in a file and name its full path in one line.'],
 ]
 const HOLD_FIX_DEFAULT = 'Run a read-only command now that shows it, and end the line with (command: "6+ characters copied from its output, never from its input"). ' +
   'If it is your opinion, move it to a Pick: line with a %. If the reply does not need it, delete it.'
@@ -428,7 +431,7 @@ export function holdNotes(draft: string, cuts: { line: string; reason: string }[
     const fix = HOLD_FIX.find(([re]) => re.test(c.reason))?.[1] ?? HOLD_FIX_DEFAULT
     return `${i + 1}. ${c.line}\n   Reason: ${reason}\n   Fix: ${fix}`
   })
-  return 'A plugin checked your draft reply before the user saw it; the user has not seen it. These lines failed the proof check:\n' +
+  return 'A plugin checked your draft reply before the user saw it; the user has not seen it. These lines failed the reply check:\n' +
     `${items.join('\n')}\n\nWrite the whole reply again with each line fixed. Do not mention this check.\n\nYour draft:\n${draft}`
 }
 

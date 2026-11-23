@@ -3,7 +3,7 @@ import { countWords, isNotice, keepProtected, lengthReminder, ownWords, parseRul
 import { MIN_QUOTE, judgePrompt, parseVerdicts, clockTime, factBullets, fillArgv, passes, proofOf, quoteFound, quoteIn, replaceProof, proofSuffix, rewriteFacts, toolMatches, claimPrompt, parseClaims, otherBullets, rewriteOther, openingOf, openingPrompt, openingFixPrompt, openingRetryPrompt, parseOpening, removedNote, talksAboutChecking, evidenceView, holdNotes, uncheckedNotes } from './policy'
 import type { CheckFile } from './policy'
 
-export type ReplyPolicyOptions = { policyFile: string; logDir: string; proofCheck: boolean; proofChecksFile: string; judgeModel: string; allLines: boolean; hold: boolean }
+export type ReplyPolicyOptions = { policyFile: string; logDir: string; proofCheck: boolean; proofChecksFile: string; judgeModel: string; allLines: boolean; hold: boolean; lengthHold: boolean }
 
 export const replyPolicyOptions = (o: Record<string, unknown>): ReplyPolicyOptions => ({
   policyFile: String(o.replyPolicyFile ?? '').trim(),
@@ -13,6 +13,7 @@ export const replyPolicyOptions = (o: Record<string, unknown>): ReplyPolicyOptio
   judgeModel: String(o.proofJudgeModel ?? 'sonnet').trim(),
   allLines: o.proofCheckAllLines === true,
   hold: o.proofHold !== false,
+  lengthHold: o.lengthHold !== false,
 })
 
 export const HOLD_TOOL_NAME = 'proof_check'
@@ -37,19 +38,35 @@ async function expand($: any, p: string): Promise<string> {
   return p.replace(/^~(?=[\\/]|$)/, home)
 }
 
-/** Per-day tally in `<logDir>/counts.json`: replies checked, and drafts over the line or word cap. */
-async function countReply($: any, logDir: string, overCap: boolean): Promise<void> {
+type DayCount = { checked: number; overCap: number; shown?: number; shownOver?: number }
+
+/**
+ * Per-day tally in `<logDir>/counts.json`: first drafts checked and over the line or word cap
+ * (`checked`, `overCap`), and replies the user saw and how many of those were still over (`shown`, `shownOver`).
+ */
+async function countReply($: any, logDir: string, kind: 'draft' | 'shown', over: boolean): Promise<void> {
   if (!logDir) return
   const path = `${await expand($, logDir)}/counts.json`
-  let counts: Record<string, { checked: number; overCap: number }> = {}
+  let counts: Record<string, DayCount> = {}
   try { counts = JSON.parse(await $.fs.read(path)) } catch { /* first reply */ }
   const day = new Date(await $.clock.now()).toISOString().slice(0, 10)
   const d = counts[day] ?? { checked: 0, overCap: 0 }
-  d.checked++
-  if (overCap) d.overCap++
+  if (kind === 'draft') { d.checked++; if (over) d.overCap++ }
+  else { d.shown = (d.shown ?? 0) + 1; if (over) d.shownOver = (d.shownOver ?? 0) + 1 }
   counts[day] = d
   await $.fs.write(path, JSON.stringify(counts))
 }
+
+/** One JSON line per reply that was held for length: the first draft and the reply shown, to check no fact was lost. */
+async function logLengthHold($: any, logDir: string, row: Record<string, unknown>): Promise<void> {
+  if (!logDir) return
+  const path = `${await expand($, logDir)}/length-holds.jsonl`
+  let old = ''
+  try { old = await $.fs.read(path) } catch { /* first hold */ }
+  await $.fs.write(path, `${old}${JSON.stringify({ at: new Date(await $.clock.now()).toISOString(), ...row })}\n`)
+}
+
+const isCap = (x: string) => / \(cap \d+/.test(x)
 
 const PER_CHECK_MS = 10_000
 const PER_REPLY_MS = 20_000
@@ -299,6 +316,10 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
   let passed: Passed = new Map()
   let failed = new Set<string>()
   let asked = new Set<string>()
+  // Length: the first draft of this prompt is counted once, and a draft held for length is kept to compare with what is shown.
+  let counted = false
+  let capDraft = ''
+  let capWords = 0
 
   if (opts.proofCheck && opts.hold) {
     on('tool.call', { tool: HOLD_TOOL } as any, async () => ({ result: `Checked. ${notes}`, context: [notes] }) as any)
@@ -316,6 +337,7 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
     if (isNotice(t)) return next(e)
     lastPrompt = t
     holds = 0; holdMs = 0; notes = ''; passed = new Map(); failed = new Set(); asked = new Set()
+    counted = false; capDraft = ''; capWords = 0
     let rules
     try {
       const file = opts.policyFile ? await expand($, opts.policyFile) : `${$.plugin.root}/policies/terse.md`
@@ -346,6 +368,8 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
     const text = buf.filter(c => c.kind === 'text').map(c => c.text).join('')
     let out = text
     let confusedReply = false
+    let capLeft: string[] = []
+    let overNow = (_s: string) => false
     if (r.toolUses.length === 0 && r.stopReason === 'end_turn' && text) {
       try {
         const file = opts.policyFile ? await expand($, opts.policyFile) : `${$.plugin.root}/policies/terse.md`
@@ -353,13 +377,17 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         const own = ownWords(lastPrompt)
         const confused = rules.confused.test(own)
         confusedReply = confused
-        const v = rules.lift.test(own) && !confused ? [] : violations(text, rules, confused)
-        await countReply($, opts.logDir, v.some(x => / \(cap \d+/.test(x))).catch(() => undefined)
+        const lifted = rules.lift.test(own) && !confused
+        const v = lifted ? [] : violations(text, rules, confused)
+        overNow = s => !lifted && violations(s, rules, confused).some(isCap)
+        // Only the first draft counts, so a held reply's rewrite does not dilute the over-cap rate.
+        if (!counted) { counted = true; await countReply($, opts.logDir, 'draft', v.some(isCap)).catch(() => undefined) }
         let draft = text, vv = v
         if (v.some(x => x.startsWith('filler:'))) {
           const stripped = stripFiller(text, rules.banned)
           if (stripped !== text) { draft = stripped; vv = violations(stripped, rules, confused) }
         }
+        capLeft = opts.lengthHold ? vv.filter(isCap) : []
         let kept = 0
         if (draft !== text && (vv.length < v.length || countWords(draft) < countWords(text))) {
           ;({ text: out, kept } = keepProtected(text, draft))
@@ -388,14 +416,18 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
           const repeat = v.cuts.some(c => failed.has(c.line))
           // A note that admits a missing check is sent back once, never cut: a quick check may settle it, and a doubt must not vanish.
           const asks = opts.hold ? uncheckedNotes(out).filter(s => !asked.has(s)).map(s => ({ line: s, reason: 'unchecked note: it says something was not checked' })) : []
-          if (opts.hold && (v.cuts.length || asks.length) && holds < MAX_HOLDS && holdMs < HOLD_BUDGET_MS && !repeat) {
+          // An over-cap draft is sent back to be cut down by the model that wrote it, which knows what each line is for.
+          const long = opts.hold && capLeft.length ? [{ line: '(the whole reply)', reason: `over the length cap: ${capLeft.join('; ')}` }] : []
+          if (opts.hold && (v.cuts.length || asks.length || long.length) && holds < MAX_HOLDS && holdMs < HOLD_BUDGET_MS && !repeat) {
             holds++
             failed = new Set(v.cuts.map(c => c.line))
             for (const a of asks) asked.add(a.line)
-            const back = [...v.cuts, ...asks]
+            const back = [...v.cuts, ...asks, ...long]
+            if (long.length && !capDraft) { capDraft = out; capWords = countWords(out) }
             notes = holdNotes(out, back)
             await logHold($, opts.logDir, holds, v.judgeMs, back, lastPrompt).catch((err: Error) => $.ui.status(`proof-check: hold log not written: ${err.message}`))
-            $.ui.status(`proof-check: fixing ${back.length} line(s) before you see the reply (round ${holds})`)
+            const fixing = back.length - long.length
+            $.ui.status(`reply check: ${[long.length ? `shortening a ${countWords(out)}-word draft` : '', fixing ? `fixing ${fixing} line(s)` : ''].filter(Boolean).join(' and ')} before you see the reply (round ${holds})`)
             held = true
           } else {
             const rows = [...v.cuts, ...v.rewrites.map(w => ({ line: w.from, reason: `narrowed to: ${w.to}` }))]
@@ -422,6 +454,13 @@ export function replyPolicy(on: On, opts: ReplyPolicyOptions) {
         return { ...r, answer: '', toolUses: [{ name: HOLD_TOOL, input: {} }], stopReason: 'tool_use' }
       }
       out = removedNote(tightBullets(issuesLast(facts.text)), 'cuts' in facts ? facts.cuts.length : facts.cut)
+      const stillOver = overNow(out)
+      await countReply($, opts.logDir, 'shown', stillOver).catch(() => undefined)
+      if (capDraft) {
+        await logLengthHold($, opts.logDir, { prompt: lastPrompt.slice(0, 200), rounds: holds, draftWords: capWords, shownWords: countWords(out), stillOver, draft: capDraft, shown: out })
+          .catch((err: Error) => $.ui.status(`length hold: log not written: ${err.message}`))
+        capDraft = ''
+      }
     }
     if (out === text) { for (const c of buf) yield c; return r }
     let done = false
