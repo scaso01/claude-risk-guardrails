@@ -44,7 +44,7 @@ person. Keep this file with the commit that holds the gate's inputs.
 - Date: 2026-11-23
 - Run by:
 - Command: `gate.py release-gate/example/results.csv release-gate/example/limits.json --record release-gate/example/decision-record.md`
-- Results: `results.csv`, SHA-256 `db0352bab489ffd18b35eca9521cdff29ecf4ea3a3d5c6505001ee44a9a13fc1`
+- Results: `results.csv`, SHA-256 `4a8876390e0c0328938925b51a0a3003f370d44993ac3227ed9333585f031187`
 - Verdict: **FAIL** (exit 2)
 - Limits set 2026-11-02; testing began 2026-11-04: PASS
 - How the representative sample was drawn, and how grading was checked:
