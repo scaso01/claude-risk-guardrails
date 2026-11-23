@@ -1,0 +1,14 @@
+{
+  "feature": "Support-ticket triage assistant (fictional)",
+  "version": "0.3.1",
+  "risk_tier": 2,
+  "set_on": "2026-11-02",
+  "approved_by": ["Feature owner: A. Example", "Independent reviewer: B. Example"],
+  "confidence": 0.95,
+  "segments": {
+    "email-en": {"max_failure_rate": 0.05, "min_cases": 100},
+    "chat-en": {"max_failure_rate": 0.05, "min_cases": 100},
+    "email-es": {"max_failure_rate": 0.05, "min_cases": 100}
+  },
+  "max_failures_by_severity": {"critical": 0, "high": 0}
+}
