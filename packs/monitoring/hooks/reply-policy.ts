@@ -108,7 +108,8 @@ export async function verifyFacts($: any, text: string, checks: CheckFile | null
   const evidence = new Map<string, string>()
   let msgs: any[] | undefined
   const messages = async () => (msgs ??= await $.session.messages())
-  const newestCalls = async () => (await messages()).flatMap(m => m.toolUses ?? []).reverse()
+  // The hold's own result repeats the model's draft, so it is never evidence for that draft.
+  const newestCalls = async () => (await messages()).flatMap(m => m.toolUses ?? []).filter((u: any) => u.tool !== HOLD_TOOL).reverse()
   const deadline = (await $.clock.now()) + PER_REPLY_MS
   const verdict = new Map<string, string | null>()
   const cuts: Cut[] = []

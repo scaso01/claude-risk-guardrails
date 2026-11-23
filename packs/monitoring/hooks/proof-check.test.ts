@@ -1,7 +1,7 @@
 import { test, expect } from 'claude-code/testing'
 import { fillArgv, passes, proofOf, quoteFound, toolMatches, factBullets, cutUnprovenFacts, judgePrompt, parseVerdicts, otherBullets, parseClaims, openingOf, parseOpening, openingPrompt, removedNote, talksAboutChecking, evidenceView } from './policy'
 import type { CheckFile } from './policy'
-import { verifyFacts } from './reply-policy'
+import { verifyFacts, HOLD_TOOL } from './reply-policy'
 
 const CHECKS: CheckFile = {
   aliases: { dotfiles: 'C:/repos/dotfiles' },
@@ -237,6 +237,16 @@ test('with a judge, a mislabelled proof still finds its output, but an echo neve
   expect(r.cut).toBe(0)
   expect((await verifyFacts({ ...f.$, model: ok }, reply('Pushed (push check: "pushed to origin ok")'), CHECKS, '', 'sonnet')).cut).toBe(1)
   expect((await verifyFacts(f.$, reply('Nothing left (repo check: "nothing to commit")'), CHECKS, '')).cut).toBe(1)
+})
+
+test('the hold note is never evidence, though it repeats the draft it held', async () => {
+  const f = fake({})
+  const ok = router({ claims: '1 OTHER', first: '1 TRUE fine' })
+  const line = 'The note rejects forms (memory note: "forms and approval workflow is rejected")'
+  const msgs = [{ role: 'assistant', text: '', toolUses: [{ tool: HOLD_TOOL, input: {}, text: `Checked. Your draft:\n- ${line}` }] }]
+  const r = await verifyFacts({ ...f.$, model: ok, session: { messages: async () => msgs } }, reply(line), CHECKS, '', 'sonnet')
+  expect(r.cut).toBe(1)
+  expect(r.cuts[0]!.reason).toBe('no command matching the proof ran this session')
 })
 
 test('empty-output proofs and short quotes need the judge and the named command', async () => {
