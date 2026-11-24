@@ -14,7 +14,15 @@ function world(on: any, drafts: string[], verdict = (_n: number) => '1 git statu
   mock.clock(on, { now: Date.UTC(2026, 9, 29, 12) })
   const w = { judged: [] as string[], status: [] as string[], files: new Map<string, string>(), steps: 0 }
   on('ui.status', (_$: any, e: any) => { w.status.push(e.text); return { value: undefined } as any })
-  on('fs.read', (_$: any, e: any) => { const v = w.files.get(e.path); if (v === undefined) throw new Error('none'); return { value: v } as any })
+  // The engine resolves paths for the platform: "/policy.md" becomes "D:\\policy.md" on a Windows runner, and a
+  // Windows path on Linux is joined to the working folder. So a faked file is found by its tail, drive dropped.
+  const tail = (p: string) => p.replace(/\\/g, '/').replace(/^[A-Za-z]:/, '')
+  on('fs.read', (_$: any, e: any) => {
+    const want = tail(String(e.path))
+    const hit = [...w.files.entries()].find(([k]) => tail(k) === want) ?? [...w.files.entries()].find(([k]) => want.endsWith(`/${tail(k).replace(/^\//, '')}`))
+    if (!hit) throw new Error('none')
+    return { value: hit[1] } as any
+  })
   on('fs.write', (_$: any, e: any) => { w.files.set(e.path, e.content ?? e.text ?? e.data); return { value: undefined } as any })
   on('prompt.submit', (_$: any, e: any) => ({ text: e.text }) as any)
   on('session.messages', () => ({ value: [{ role: 'assistant', text: '', toolUses: [{ tool: 'Bash', input: { command: 'git status' }, text: 'On branch main\nnothing to commit, working tree clean' }] }] }) as any)
@@ -174,10 +182,9 @@ When the user signals confusion ("don't understand", "confused", "confusing",
 use simpler words, the same word cap, the recommendation first.`
 const LEN = { options: { ...OPTS.options, replyPolicyFile: '/policy.md', lengthHold: true } }
 const LONG = reply(GOOD).replace('The repo is clean.', `The repo is clean. ${'Every word here counts toward the cap. '.repeat(20)}`)
-// The engine hands fs a platform path ("C:\policy.md" on Windows), so files are found by their tail.
 const lengthWorld = (on: any, drafts: string[]) => {
   const w = world(on, drafts)
-  for (const p of ['/policy.md', 'C:\\policy.md']) w.files.set(p, MD)
+  w.files.set('/policy.md', MD)
   return w
 }
 const fileOf = (w: any, name: string): string | undefined =>

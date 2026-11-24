@@ -44,6 +44,8 @@ jobs:
           python-version: "3.12"
       - name: Secret and backup-file patterns pass their self-test
         run: python evidence/tight.py selftest
+      - name: Release gate tests
+        run: python -m unittest discover -s release-gate
 
   secrets:
     runs-on: ubuntu-latest
