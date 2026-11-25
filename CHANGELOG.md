@@ -38,6 +38,7 @@
 - publish-gate: an approval covers the held push and its repository, not the whole command line.
 - clean-tree-on-done: a file written through a symlink is checked in the repository it lands in, so a linked folder no longer hides it; "haven't committed", "hasn't committed" and "didn't committed" count as telling the user.
 - turn-ledger: one file per process per day, so concurrent sessions never lose a row.
+- sensitive-file-guard: paths are matched after symbolic links are followed, on both sides. A link that lands on a protected file is refused, and when the settings file is itself a link, an edit to the file it points to is refused too (that edit used to pass).
 
 ### Project
 - CI scans the full history for secrets, not only the pushed range.

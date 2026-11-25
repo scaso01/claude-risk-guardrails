@@ -274,6 +274,8 @@ file to every subagent's start.
 settings file.
 **Responds:** refuses and asks you to make the change by hand. It covers edit tools and shell
 writes: redirects, `tee`, `sed -i`, `cp`/`mv`/`rm`, PowerShell `Set-Content` and .NET file calls.
+It follows symbolic links first: a link that lands on a protected file is refused, and so is the
+file a linked settings file points to.
 **Maps to:** SR 26-2 VI Governance & Controls · NIST AI RMF Manage.
 
 ![sensitive-file-guard](images/sensitive-file-guard.png)
