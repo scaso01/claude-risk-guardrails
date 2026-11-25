@@ -317,3 +317,31 @@ test('sensitive-file-guard refuses a PowerShell write to .env', async ($, on) =>
   await $.tool.call({ tool: 'PowerShell', command: 'Get-Content .env.example' } as any)
   expect(reached.length).toBe(1)
 })
+
+test('sensitive-file-guard follows links on the path and on the settings file', async ($, on) => {
+  const { reached } = world(on)
+  const lands: Record<string, string> = {
+    'c:/users/t/.claude/settings.json': 'C:\\dot\\claude\\settings.json.tmpl',
+    'c:/dot/claude/settings.json.tmpl': 'C:\\dot\\claude\\settings.json.tmpl',
+    'c:/p/notes.txt': 'C:\\p\\.env',
+    'c:/lnk': 'C:\\Users\\t\\.ssh',
+    'c:/p/readme.md': 'C:\\p\\readme.md',
+  }
+  on('fs.stat', (_$: any, e: any) => {
+    const asked = String(e.path).replace(/\\/g, '/').replace(/\/$/, '').toLowerCase()
+    const key = e.resolve ? Object.keys(lands).find(k => asked.endsWith(k)) : undefined
+    return { value: { kind: 'file', size: 1, mtimeMs: 0, isLink: false, ...(key ? { realPath: lands[key] } : {}) } }
+  })
+  const viaTarget: any = await $.tool.call({ tool: 'Edit', file_path: 'C:\\dot\\claude\\settings.json.tmpl', old_string: 'a', new_string: 'b' } as any)
+  expect(denyText(viaTarget)).toContain("Claude Code's own settings")
+  const viaLink: any = await $.tool.call({ tool: 'Write', file_path: 'C:/p/notes.txt', content: 'x' } as any)
+  expect(denyText(viaLink)).toContain('a .env file')
+  const newFile: any = await $.tool.call({ tool: 'Write', file_path: 'C:/lnk/id_new', content: 'x' } as any)
+  expect(denyText(newFile)).toContain('SSH private key')
+  const shell: any = await $.tool.call({ tool: 'Bash', command: 'echo x > C:/dot/claude/settings.json.tmpl' } as any)
+  expect(denyText(shell)).toContain('[sensitive-file-guard] Refused: this command writes to')
+  const plain: any = await $.tool.call({ tool: 'Write', file_path: 'C:/p/readme.md', content: 'x' } as any)
+  expect(denyText(plain)).toBe('')
+  await $.tool.call({ tool: 'Bash', command: 'cat C:/dot/claude/settings.json.tmpl' } as any)
+  expect(reached.length).toBe(2)
+})
